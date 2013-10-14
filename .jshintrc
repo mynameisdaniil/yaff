@@ -1,0 +1,24 @@
+{
+    "asi": false,
+    "bitwise": true,
+    "forin": true,
+    "latedef": false,
+    "esnext": true,
+    "quotmark": true,
+    "unused": true,
+    "trailing": true,
+    "expr": true,
+    "loopfunc": false,
+    "curly": false,
+    "evil": false,
+    "white": true,
+    "undef": true,
+    "browser": false,
+    "node": true,
+    "es5": true,
+    "indent": 2,
+    "newcap": false,
+    "strict": false,
+    "predef": [
+    ]
+}
