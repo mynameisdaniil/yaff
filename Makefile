@@ -7,6 +7,9 @@ default: test
 test:
 	$(NODE) test.js
 
+seq:
+	$(NODE) seq.js
+
 install:
 	@rm -rf $(MODULES)
 	$(NPM) install
