@@ -1,5 +1,5 @@
 var util = require('util');
-var Seq = require('./main.js');
+var Seq = require('seq');
 
 Seq()
   .seq(function () {
@@ -10,14 +10,14 @@ Seq()
     var self = this;
     console.log('par function1: ' + arg);
     setTimeout(function () {
-      self(null, 'par1');
+      self(null, 'par1', 'optionl1');
     }, 200);
   })
   .par(function (arg) {
     var self = this;
     console.log('par function2: ' + arg);
     setTimeout(function () {
-      self(null, 'par2');
+      self(null, 'par2', 'optionl2');
     }, 100);
   })
   .seq(function (arg1, arg2) {
