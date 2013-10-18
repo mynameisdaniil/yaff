@@ -22,8 +22,9 @@ exports.Test = function () {
       }, 100);
     })
     .seq(function (arg1, arg2) {
-      console.log(util.inspect(arg1));
+      // console.log(util.inspect(arg1));
       console.log('seq function2. arg1: ' + arg1 + ', arg2: ' + arg2);
+      // this('I\'m a Duke Nukem!');
       this();
     })
     .seq(function () {
@@ -35,6 +36,6 @@ exports.Test = function () {
       this(null, 'OMG!');
     })
     .catch(function (e) {
-      console.log('error caught!: ' + e);
+      console.error('ERROR: ' + e);
     });
 };
