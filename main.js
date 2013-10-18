@@ -24,19 +24,17 @@ var Seq = module.exports = function Seq(initialStack) {
 
 Seq.prototype.handlersMap = {};
 
-Seq.prototype.handlersMap[SEQ] = function (self, currItem, currArgs) {
-  currArgs = self.args.shift();
+Seq.prototype.handlersMap[SEQ] = function (self, currItem) {
   currItem = self.stack.shift();
-  executor(currItem.fn, currArgs, self);
+  executor(currItem.fn, self);
 };
 
-Seq.prototype.handlersMap[PAR] = function (self, currItem, currArgs) {
-  currArgs = self.args.shift();
+Seq.prototype.handlersMap[PAR] = function (self, currItem) {
   while (self.stack.length && self.stack[0].type === PAR) {
     currItem = self.stack.shift();
-    self.args.push([]);
-    executor(currItem.fn, currArgs.slice(0), self, true, currItem.position);
+    executor(currItem.fn, self, true, currItem.position);
   }
+  self.args = [];
 };
 
 //-------------------------------------------------------------------------
@@ -135,7 +133,7 @@ Seq.prototype.debug = function () {
   return this;
 };
 
-var executor = function (fn, args, self, merge, position) {
+var executor = function (fn, self, merge, position) {
   if (typeof executor.concurencyLevel === 'undefined')
     executor.concurencyLevel = 0;
   executor.concurencyLevel++;
@@ -146,21 +144,21 @@ var executor = function (fn, args, self, merge, position) {
     } else {
       var ret = Array.prototype.slice.call(arguments, 1);
       if (!merge)
-        self.args.unshift(ret);
+        self.args = ret;
       else
-        self.args[0][position] = ret.length > 1 ? ret:ret[0];
+        self.args[position] = ret.length > 1 ? ret:ret[0];
     }
     if (!executor.concurencyLevel)
       setImmediate(function () {
         self.conveyor();
       });
   };
-  // args.push(cb); //TODO remove for backwards compatibility
   setImmediate((function (cb, args) {
+    // args.push(cb); //TODO remove for backwards compatibility
     return function () {
       fn.apply(cb, args);
     };
-  })(cb, args));
+  })(cb, self.args.slice(0)));
 };
 
 Seq.prototype.errHandler = function (e) {
