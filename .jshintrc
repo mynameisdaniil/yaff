@@ -20,5 +20,6 @@
     "newcap": false,
     "strict": false,
     "predef": [
+      "maybe"
     ]
 }
