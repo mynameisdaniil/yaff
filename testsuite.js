@@ -21,6 +21,12 @@ exports.Test = function () {
         self(null, 'par2');
       }, 100);
     })
+    // .forEach(function (arg) {
+    //   setTimeout(function () {
+    //     console.log('forEach: ' + arg);
+    //   }, 100);
+    // })
+    .splice(0, 1, 0)
     .seq(function (arg1, arg2) {
       // console.log(util.inspect(arg1));
       console.log('seq function2. arg1: ' + arg1 + ', arg2: ' + arg2);
