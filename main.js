@@ -44,7 +44,7 @@ Seq.prototype.handlersMap[PAR] = function (self, currItem, currArgs) {
 Seq.prototype.conveyor = function () {
   var currItem = this.stack[0];
   if (currItem) {
-    console.log('-------------------------------------');
+    // console.log('-------------------------------------');
     if (this.handlersMap[currItem.type])
       this.handlersMap[currItem.type](this, currItem);
     else
@@ -66,11 +66,54 @@ Seq.prototype.par = function (fn) {
   return this;
 };
 
+Seq.prototype.forEach = function (fn) {
+};
+
+Seq.prototype.seqEach = function (fn) {
+};
+
+Seq.prototype.parEach = function (fn) {
+};
+
 Seq.prototype.flatten = function (fully) {
   this.stack.push({fn: function () {
     this.apply(this, [null].concat(_.flatten(arguments, !fully)));
   }, type: SEQ});
   return this;
+};
+
+Seq.prototype.unflatten = function () {
+  this.stack.push({fn: function () {
+    this.apply(this, [null, Array.prototype.slice.call(arguments)]);
+  }, type: SEQ});
+  return this;
+};
+
+Seq.prototype.extend = function (arr) {
+};
+
+Seq.prototype.set = function (arr) {
+};
+
+Seq.prototype.empty = function () {
+};
+
+Seq.prototype.push = function (/*args*/) {
+};
+
+Seq.prototype.pop = function () {
+};
+
+Seq.prototype.shift = function () {
+};
+
+Seq.prototype.unshift = function (/*args*/) {
+};
+
+Seq.prototype.splice = function () {
+};
+
+Seq.prototype.reverse = function () {
 };
 
 Seq.prototype.catch = function (fn) {
@@ -79,10 +122,16 @@ Seq.prototype.catch = function (fn) {
 };
 
 Seq.prototype.debug = function () {
-  console.log('->FUN STACK:');
-  console.log(util.inspect(this.stack));
-  console.log('->ARG STACK:');
-  console.log(util.inspect(this.args));
+  var self = this;
+  this.stack.push({fn: function () {
+    this.apply(this, [null].concat(Array.prototype.slice.call(arguments)));
+    console.log('̲........................................');
+    console.log('->FUN STACK:');
+    console.log(util.inspect(self.stack));
+    console.log('->ARG STACK:');
+    console.log(util.inspect(self.args));
+    console.log('........................................');
+  }, type: SEQ});
   return this;
 };
 
@@ -102,11 +151,9 @@ var executor = function (fn, args, self, merge, position) {
         self.args[0][position] = ret.length > 1 ? ret:ret[0];
     }
     if (!executor.concurencyLevel)
-      setImmediate((function () {
-        return function () {
-          self.conveyor();
-        };
-      })());
+      setImmediate(function () {
+        self.conveyor();
+      });
   };
   // args.push(cb); //TODO remove for backwards compatibility
   setImmediate((function (cb, args) {
@@ -118,9 +165,7 @@ var executor = function (fn, args, self, merge, position) {
 
 Seq.prototype.errHandler = function (e) {
   var currItem = {};
-  while (currItem.type !== ERR) {
-    currItem = this.stack.shift(); //looking for closest error handler
-    this.args.shift(); //just shift the args. we don't need them anymore
-  }
-  return currItem.fn(e);
+  while (currItem && currItem.type !== ERR)
+    currItem = this.stack.shift(this.args.shift()); //looking for closest error handler. Just shifting the args - we don't need them anymore
+  (currItem ? currItem.fn : function (e) { return console.error(e.stack ? e.stack : e); })(e);
 };
