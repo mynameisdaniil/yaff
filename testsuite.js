@@ -8,27 +8,36 @@ exports.Test = function () {
       this(null, 'ololo');
     })
     .par(function (arg) {
-      var self = this;
-      console.log('par function1: ' + arg);
       setTimeout(function () {
-        self(null, 'par1');
-      }, 200);
+        console.log('par function1: ' + arg);
+        this(null, 'par1');
+      }.bind(this), 200);
     })
     .par(function (arg) {
-      var self = this;
-      console.log('par function2: ' + arg);
       setTimeout(function () {
-        self(null, 'par2');
+        console.log('par function2: ' + arg);
+        this(null, 'par2');
+      }.bind(this), 100);
+    })
+    .forEach(function (arg) {
+      setTimeout(function () {
+        console.log('forEach: ' + arg);
       }, 100);
     })
-    // .forEach(function (arg) {
-    //   setTimeout(function () {
-    //     console.log('forEach: ' + arg);
-    //   }, 100);
-    // })
-    .splice(0, 1, 0)
+    .seqEach(function (arg) {
+      setTimeout(function () {
+        console.log('seqEach: ' + arg);
+        this();
+      }.bind(this), 100);
+    })
+    .parEach(function (arg) {
+      setTimeout(function () {
+        console.log('parEach: ' + arg);
+        this();
+      }.bind(this), 100);
+    })
+    .splice(0, 1, 'hehehe')
     .seq(function (arg1, arg2) {
-      // console.log(util.inspect(arg1));
       console.log('seq function2. arg1: ' + arg1 + ', arg2: ' + arg2);
       // this('I\'m a Duke Nukem!');
       this();
