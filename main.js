@@ -11,7 +11,7 @@ var Seq = module.exports = function Seq(initialStack) {
   if (this instanceof Seq) {
     var self = this;
     this.stack = [];
-    this.concurencyLevel = 0;
+    this.concurrencyLevel = 0;
     this.args = maybe(initialStack).kindOf(Array).getOrElse([]);
     process.nextTick(function waitForStack() {
       if (self.stack.length)
@@ -36,11 +36,15 @@ Seq.prototype.handlersMap[SEQ] = function (self, currItem) {
 };
 
 Seq.prototype.handlersMap[PAR] = function (self, currItem) {
-  while (self.stack.length && self.stack[0].type === PAR) {
+  while (self.stack.length && self.stack[0].type === PAR && (!currItem.limit || currItem.limit > self.concurrencyLevel)) {
     currItem = self.stack.shift();
-    executor(currItem, self, true);
+    executor(currItem, self, currItem.limit, true);
   }
   self.args = [];
+};
+
+Seq.prototype.handlersMap[ERR] = function (self) {
+  self.conveyor(self.stack.shift()); //Err handler shouldn't be executed in order, so skip current step
 };
 
 
@@ -48,19 +52,15 @@ Seq.prototype.handlersMap[PAR] = function (self, currItem) {
 
 Seq.prototype.conveyor = function () {
   var currItem = this.stack[0];
-  if (currItem) {
-    // console.log('-------------------------------------');
-    if (this.handlersMap[currItem.type])
-      this.handlersMap[currItem.type](this, currItem);
-    else
-      return this.conveyor(this.stack.shift()); //skip current step
-  }
+  if (currItem)
+    this.handlersMap[currItem.type](this, currItem);
 };
 
-var executor = function (currItem, self, merge) { //TODO maybe we need to optimize use of nextTick/setImmediate
-  self.concurencyLevel++;
+var executor = function (currItem, self, limit, merge) { //TODO maybe we need to optimize use of nextTick/setImmediate
+  limit = typeof limit == 'number' ? limit:1;
+  self.concurrencyLevel++;
   var cb = function (e) {
-    self.concurencyLevel--;
+    self.concurrencyLevel--;
     if (e) {
       return self.errHandler(e);
     } else {
@@ -70,11 +70,12 @@ var executor = function (currItem, self, merge) { //TODO maybe we need to optimi
       else
         self.args[currItem.position] = ret.length > 1 ? ret:ret[0];
     }
-    if (!self.concurencyLevel)
+    if (self.concurrencyLevel < limit)
       (currItem.immediate ? process.nextTick:setImmediate)(function () {
         self.conveyor();
       });
   };
+  cb.vars = self.args;
   (currItem.immediate ? process.nextTick:setImmediate)((function (cb, args) {
     // args.push(cb); //TODO remove for backwards compatibility
     return function () {
@@ -99,11 +100,10 @@ Seq.prototype.seq = function (fn) {
 };
 
 Seq.prototype.par = function (fn) {
-  if (this.stack.length && this.stack[this.stack.length - 1].type == PAR) {
+  if (this.stack.length && this.stack[this.stack.length - 1].type == PAR)
     this.stack.push({fn: fn, type: PAR, position: this.stack[this.stack.length - 1].position + 1});
-  } else {
+  else
     this.stack.push({fn: fn, type: PAR, position: 0});
-  }
   return this;
 };
 
@@ -115,6 +115,12 @@ Seq.prototype.catch = function (fn) {
 Seq.prototype.immediate = function () {
   if (this.stack.length)
     this.stack[this.stack.length - 1].immediate = true;
+  return this;
+};
+
+Seq.prototype.limit = function (limit) {
+  if (this.stack.length)
+    this.stack[this.stack.length - 1].limit = limit;
   return this;
 };
 
@@ -148,7 +154,9 @@ Seq.prototype.seqEach = function (fn) {
   }).immediate();
 };
 
-Seq.prototype.parEach = function (fn) {
+Seq.prototype.parEach = function (limit, fn) {
+  fn = maybe(fn).kindOf(Function).getOrElse(limit);
+  limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
@@ -156,7 +164,7 @@ Seq.prototype.parEach = function (fn) {
     args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
-      });
+      }).limit(limit);
     });
     subseq.seq(function () {
       this(null, self.apply(self, [null].concat(args)));
