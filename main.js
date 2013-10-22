@@ -32,13 +32,13 @@ Seq.prototype.handlersMap = {};
 
 Seq.prototype.handlersMap[SEQ] = function (self, currItem) {
   currItem = self.stack.shift();
-  executor(currItem, self);
+  executor(currItem, self, currItem.context);
 };
 
 Seq.prototype.handlersMap[PAR] = function (self, currItem) {
   while (self.stack.length && self.stack[0].type === PAR && (!currItem.limit || self.concurrencyLevel < currItem.limit)) {
     currItem = self.stack.shift();
-    executor(currItem, self, true, currItem.limit);
+    executor(currItem, self, currItem.context, true, currItem.limit);
   }
   self.args = [];
 };
@@ -56,7 +56,7 @@ Seq.prototype.conveyor = function () {
     this.handlersMap[currItem.type](this, currItem);
 };
 
-var executor = function (currItem, self, merge, limit) { //TODO maybe we need to optimize use of nextTick/setImmediate
+var executor = function (currItem, self, context, merge, limit) { //TODO maybe we need to optimize use of nextTick/setImmediate
   self.concurrencyLevel++;
   var cb = function (e) {
     self.concurrencyLevel--;
@@ -77,9 +77,10 @@ var executor = function (currItem, self, merge, limit) { //TODO maybe we need to
   };
   cb.vars = self.args;
   (currItem.immediate ? process.nextTick:setImmediate)((function (cb, args) {
-    // args.push(cb); //TODO remove for backwards compatibility
+    if (context)
+      args.push(cb);
     return function () {
-      currItem.fn.apply(cb, args);
+      currItem.fn.apply(context || cb, args);
     };
   })(cb, self.args.slice()));
 };
@@ -99,12 +100,20 @@ Seq.prototype.seq = function (fn) {
   return this;
 };
 
+Seq.prototype.sq_ = function (fn) {
+  return this.seq(fn).context(fn);
+};
+
 Seq.prototype.par = function (fn) {
   if (this.stack.length && this.stack[this.stack.length - 1].type == PAR)
     this.stack.push({fn: fn, type: PAR, position: this.stack[this.stack.length - 1].position + 1});
   else
     this.stack.push({fn: fn, type: PAR, position: 0});
   return this;
+};
+
+Seq.prototype.pr_ = function (fn) {
+  return this.par(fn).context(fn);
 };
 
 Seq.prototype.catch = function (fn) {
@@ -121,6 +130,12 @@ Seq.prototype.immediate = function () {
 Seq.prototype.limit = function (limit) {
   if (this.stack.length)
     this.stack[this.stack.length - 1].limit = limit;
+  return this;
+};
+
+Seq.prototype.context = function (context) {
+  if (this.stack.length)
+    this.stack[this.stack.length - 1].context = context;
   return this;
 };
 
