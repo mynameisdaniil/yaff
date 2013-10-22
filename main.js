@@ -69,14 +69,13 @@ var executor = function (currItem, self, context, merge, limit) { //TODO maybe w
       else
         self.args[currItem.position] = ret.length > 1 ? ret:ret[0];
     }
-    if (!self.concurrencyLevel || (self.concurrencyLevel < limit && self.stack[0].type == currItem.type)) {
-      (currItem.immediate ? process.nextTick:setImmediate)(function () {
+    if (!self.concurrencyLevel || (self.concurrencyLevel < limit && self.stack[0].type == currItem.type))
+      process.nextTick(function () {
         self.conveyor();
       });
-    }
   };
   cb.vars = self.args;
-  (currItem.immediate ? process.nextTick:setImmediate)((function (cb, args) {
+  process.nextTick((function (cb, args) {
     if (context)
       args.push(cb);
     return function () {
@@ -121,12 +120,6 @@ Seq.prototype.catch = function (fn) {
   return this;
 };
 
-Seq.prototype.immediate = function () {
-  if (this.stack.length)
-    this.stack[this.stack.length - 1].immediate = true;
-  return this;
-};
-
 Seq.prototype.limit = function (limit) {
   if (this.stack.length)
     this.stack[this.stack.length - 1].limit = limit;
@@ -150,7 +143,7 @@ Seq.prototype.forEach = function (fn) {
     });
     subseq.catch(this);
     this.apply(this, [null].concat(args));
-  }).immediate();
+  });
 };
 
 Seq.prototype.seqEach = function (fn) {
@@ -166,7 +159,7 @@ Seq.prototype.seqEach = function (fn) {
     subseq.seq(function () {
       this(null, self.apply(self, [null].concat(args)));
     }).catch(this);
-  }).immediate();
+  });
 };
 
 Seq.prototype.parEach = function (limit, fn) {
@@ -184,7 +177,7 @@ Seq.prototype.parEach = function (limit, fn) {
     subseq.seq(function () {
       this(null, self.apply(self, [null].concat(args)));
     }).catch(this);
-  }).immediate();
+  });
 };
 
 Seq.prototype.seqMap = function (fn) {
@@ -198,57 +191,57 @@ Seq.prototype.parMap = function (limit, fn) {
 Seq.prototype.flatten = function (fully) {
   return this.seq(function () {
     this.apply(this, [null].concat(_.flatten(arguments, !fully)));
-  }).immediate();
+  });
 };
 
 Seq.prototype.unflatten = function () {
   return this.seq(function () {
     this.apply(this, [null, Array.prototype.slice.call(arguments)]);
-  }).immediate();
+  });
 };
 
 Seq.prototype.extend = function (arr) {
   return this.seq(function () {
     this.apply(this, [null].concat(Array.prototype.slice.call(arguments), arr));
-  }).immediate();
+  });
 };
 
 Seq.prototype.set = function (arr) {
   return this.seq(function () {
     this.apply(this, [null, arr]);
-  }).immediate();
+  });
 };
 
 Seq.prototype.empty = function () {
   return this.seq(function () {
     this();
-  }).immediate();
+  });
 };
 
 Seq.prototype.push = function (/*args*/) {
   var args = Array.prototype.slice.call(arguments);
   return this.seq(function () {
     this.apply(this, [null].concat(Array.prototype.slice.call(arguments), args));
-  }).immediate();
+  });
 };
 
 Seq.prototype.pop = function () {
   return this.seq(function () {
     this.apply(this, [null].concat(Array.prototype.slice.call(arguments, 0, -1)));
-  }).immediate();
+  });
 };
 
 Seq.prototype.shift = function () {
   return this.seq(function () {
     this.apply(this, [null].concat(Array.prototype.slice.call(arguments, 1)));
-  }).immediate();
+  });
 };
 
 Seq.prototype.unshift = function (/*args*/) {
   var args = Array.prototype.slice.call(arguments);
   return this.seq(function () {
     this.apply(this, [null].concat(args, Array.prototype.slice.call(arguments)));
-  }).immediate();
+  });
 };
 
 Seq.prototype.splice = function (index, howMany, toAppend) {
@@ -257,13 +250,13 @@ Seq.prototype.splice = function (index, howMany, toAppend) {
     var args = Array.prototype.slice.call(arguments);
     Array.prototype.splice.apply(args, [index, howMany].concat(toAppend));
     this.apply(this, [null].concat(args));
-  }).immediate();
+  });
 };
 
 Seq.prototype.reverse = function () {
   return this.seq(function () {
     this.apply(this, [null].concat(Array.prototype.slice.call(arguments).reverse()));
-  }).immediate();
+  });
 };
 
 Seq.prototype.debug = function () {
@@ -276,5 +269,5 @@ Seq.prototype.debug = function () {
     console.log('->ARG STACK:');
     console.log(util.inspect(self.args));
     console.log('........................................');
-  }).immediate();
+  });
 };
