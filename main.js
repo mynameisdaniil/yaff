@@ -11,6 +11,7 @@ var Seq = module.exports = function Seq(initialStack) {
   if (this instanceof Seq) {
     var self = this;
     this.stack = [];
+    this.queue = [];
     this.concurrencyLevel = 0;
     this.args = maybe(initialStack).kindOf(Array).getOrElse([]);
     process.nextTick(function waitForStack() {
@@ -36,10 +37,14 @@ Seq.prototype.handlersMap[SEQ] = function (self, currItem) {
 };
 
 Seq.prototype.handlersMap[PAR] = function (self, currItem) {
-  while (self.stack.length && self.stack[0].type === PAR && (!currItem.limit || self.concurrencyLevel < currItem.limit)) {
+  while (self.stack.length && self.stack[0].type == PAR) {
     currItem = self.stack.shift();
-    executor(currItem, self, currItem.context, true, currItem.limit);
+    if (self.concurrencyLevel >= currItem.limit)
+      self.queue.push(currItem);
+    else
+      executor(currItem, self, currItem.context, true);
   }
+  console.log('emptying the args stack');
   self.args = [];
 };
 
@@ -56,7 +61,7 @@ Seq.prototype.conveyor = function () {
     this.handlersMap[currItem.type](this, currItem);
 };
 
-var executor = function (currItem, self, context, merge, limit) { //TODO maybe we need to optimize use of nextTick/setImmediate
+var executor = function (currItem, self, context, merge) { //TODO maybe we need to optimize use of nextTick/setImmediate
   self.concurrencyLevel++;
   var cb = function (e) {
     self.concurrencyLevel--;
@@ -64,12 +69,16 @@ var executor = function (currItem, self, context, merge, limit) { //TODO maybe w
       return self.errHandler(e);
     } else {
       var ret = Array.prototype.slice.call(arguments, 1);
-      if (!merge)
-        self.args = ret;
-      else
+      if (merge)
         self.args[currItem.position] = ret.length > 1 ? ret:ret[0];
+      else
+        self.args = ret;
     }
-    if (!self.concurrencyLevel || (self.concurrencyLevel < limit && self.stack[0].type == currItem.type))
+    if (self.queue.length) {
+      var newItem = self.queue.pop();
+      return executor(newItem, self, newItem.context, true);
+    }
+    if (!self.concurrencyLevel)
       process.nextTick(function () {
         self.conveyor();
       });
@@ -181,11 +190,41 @@ Seq.prototype.parEach = function (limit, fn) {
 };
 
 Seq.prototype.seqMap = function (fn) {
+  return this.seq(function () {
+    var self = this;
+    var subseq = Seq();
+    var args = Array.prototype.slice.call(arguments);
+    var stack = [null];
+    args.forEach(function (item, index) {
+      subseq.seq(function () {
+        var that = this;
+        fn.call(function (e, ret) {
+          that(e, stack.push(ret));
+        }, item, index);
+      });
+    });
+    subseq.seq(function () {
+      this(null, self.apply(self, stack));
+    }).catch(this);
+  });
 };
 
 Seq.prototype.parMap = function (limit, fn) {
   fn = maybe(fn).kindOf(Function).getOrElse(limit);
   limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
+  return this.seq(function () {
+    var self = this;
+    var subseq = Seq();
+    var args = Array.prototype.slice.call(arguments);
+    args.forEach(function (item, index) {
+      subseq.par(function () {
+        fn.call(this, item, index);
+      }).limit(limit);
+    });
+    subseq.seq(function () {
+      this(null, self.apply(self, [null].concat(Array.prototype.slice.call(arguments))));
+    }).catch(this);
+  });
 };
 
 Seq.prototype.flatten = function (fully) {
