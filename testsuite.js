@@ -1,4 +1,4 @@
-// var util = require('util');
+var util = require('util');
 var fs = require('fs');
 
 exports.Seq;
@@ -57,28 +57,31 @@ exports.Test = function () {
   //   .seq(function () {
   //     console.log('post apocalypse');
   //   });
-  console.log('----------------------------------------');
-  setImmediate(function eventLoopTracker() {
-    console.log('----------------------------------------');
-    setImmediate(eventLoopTracker);
-  });
+
   this.Seq()
     .seq(function () {
-      // throw new Error('test');
       this(null, [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
       ]);
     })
     .flatten()
-    .seqEach(function (item) {
-      // throw new Error('test');
-      // setTimeout(function () {
-      console.log('>>' + item);
-      this();
-      // }.bind(this), 0);
+    .parMap(2, function (item) {
+      setTimeout(function () {
+        console.log('>>' + item);
+        this(null, item * 2);
+      }.bind(this), 500 + Math.random() * 500);
     })
-    .seq(function () {
+    .unflatten()
+    .seq(function (arr) {
+      console.log(util.inspect(arr));
       console.log('before end');
       process.exit(0);
     });
+
+
+  // console.log('----------------------------------------');
+  // setImmediate(function eventLoopTracker() {
+  //   console.log('----------------------------------------');
+  //   setImmediate(eventLoopTracker);
+  // });
 };
