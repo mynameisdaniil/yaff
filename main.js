@@ -21,7 +21,7 @@ var Seq = module.exports = function Seq(initialStack) {
         setImmediate(waitForStack);
     });
   } else {
-    console.log('creating new instance of Seq');
+    // console.log('creating new instance of Seq');
     return new Seq();
   }
 };
@@ -44,11 +44,11 @@ Seq.prototype.handlersMap[PAR] = function (self, currItem) {
     else
       executor(currItem, self, currItem.context, true);
   }
-  console.log('emptying the args stack');
   self.args = [];
 };
 
 Seq.prototype.handlersMap[ERR] = function (self) {
+  // console.log('skipping the error handler');
   self.conveyor(self.stack.shift()); //Err handler shouldn't be executed in order, so skip current step
 };
 
@@ -61,11 +61,12 @@ Seq.prototype.conveyor = function () {
     this.handlersMap[currItem.type](this, currItem);
 };
 
-var executor = function (currItem, self, context, merge) { //TODO maybe we need to optimize use of nextTick/setImmediate
+var executor = function (currItem, self, context, merge) {
   self.concurrencyLevel++;
   var cb = function (e) {
     self.concurrencyLevel--;
     if (e) {
+      // console.log('err happend!');
       return self.errHandler(e);
     } else {
       var ret = Array.prototype.slice.call(arguments, 1);
@@ -94,10 +95,15 @@ var executor = function (currItem, self, context, merge) { //TODO maybe we need 
 };
 
 Seq.prototype.errHandler = function (e) {
-  var currItem = {};
-  while (currItem && currItem.type !== ERR)
-    currItem = this.stack.shift(this.args.shift()); //looking for closest error handler. Just shifting the args - we don't need them anymore
-  (currItem ? currItem.fn : function (e) { throw e; })(e);
+  var currItem;
+  var defaultHandler = function (e) { throw e; };
+  /*jshint boss: true*/
+  while (currItem = this.stack[0])
+    if (currItem.type == ERR)
+      return this.conveyor(currItem.fn(e));
+    else
+      this.stack.shift(this.args.shift());
+  return this.conveyor(defaultHandler(e));
 };
 
 
@@ -141,16 +147,17 @@ Seq.prototype.context = function (context) {
   return this;
 };
 
-Seq.prototype.forEach = function (fn) {
+Seq.prototype.forEach = function (limit, fn) {
+  fn = maybe(fn).kindOf(Function).getOrElse(limit);
+  limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
   return this.seq(function () {
     var subseq = Seq();
     var args = Array.prototype.slice.call(arguments);
     args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
-      });
+      }).limit(limit);
     });
-    subseq.catch(this);
     this.apply(this, [null].concat(args));
   });
 };
