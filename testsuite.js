@@ -59,15 +59,15 @@ exports.Test = function () {
   //   });
   this.Seq()
     .seq(function () {
-      fs.readdir(__dirname, this);
+      this(null, [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+      ]);
     })
     .flatten()
-    .parEach(2, function (file) {
-      fs.stat(__dirname + '/' + file, function (e, item) {
-        setTimeout(function () {
-          console.log(item.size);
-          this();
-        }.bind(this), 1000);
-      }.bind(this));
+    .parEach(function (item) {
+      setTimeout(function () {
+        console.log('>>' + item);
+        this();
+      }.bind(this), 1000 + (Math.random() * 500));
     });
 };
