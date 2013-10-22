@@ -75,7 +75,14 @@ exports.Test = function () {
     .seq(function (arr) {
       console.log(util.inspect(arr));
       console.log('before end');
-      process.exit(0);
+      this(new Error('Test'));
+      // process.exit(0);
+    })
+    .catch(function (e) {
+      console.error('ERROR: ' + e);
+    })
+    .seq(function () {
+      console.log('post apocalypse');
     });
 
 
