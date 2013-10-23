@@ -14,16 +14,19 @@ var log   = console.log;
 const PAR = 'par';
 const SEQ = 'seq';
 const ERR = 'err';
+const FIN = 'fin';
 
 /**
- * @Class Seq
+ * @Class YAFF
  **/
-var Seq = module.exports = function Seq(initialStack) {
-  if (this instanceof Seq) {
+var YAFF = module.exports = function YAFF(initialStack) {
+  if (this instanceof YAFF) {
     var self = this;
     this.stack = [];
     this.queue = [];
     this.vars = {};
+    this.finally;
+    this.lastError;
     this.concurrencyLevel = 0;
     this.args = maybe(initialStack).kindOf(Array).getOrElse([]);
     process.nextTick(function waitForStack() {
@@ -33,21 +36,21 @@ var Seq = module.exports = function Seq(initialStack) {
         setImmediate(waitForStack);
     });
   } else {
-    return new Seq(initialStack);
+    return new YAFF(initialStack);
   }
 };
 
 
 //Handlers-----------------------------------------------------------------
 
-Seq.prototype.handlersMap = {};
+YAFF.prototype.handlersMap = {};
 
-Seq.prototype.handlersMap[SEQ] = function (self, currItem) {
+YAFF.prototype.handlersMap[SEQ] = function (self, currItem) {
   currItem = self.stack.shift();
   executor(currItem, self, currItem.context);
 };
 
-Seq.prototype.handlersMap[PAR] = function (self, currItem) {
+YAFF.prototype.handlersMap[PAR] = function (self, currItem) {
   while (self.stack.length && self.stack[0].type == PAR) {
     currItem = self.stack.shift();
     if (self.concurrencyLevel >= currItem.limit)
@@ -58,14 +61,19 @@ Seq.prototype.handlersMap[PAR] = function (self, currItem) {
   self.args = [];
 };
 
-Seq.prototype.handlersMap[ERR] = function (self) {
+YAFF.prototype.handlersMap[ERR] = function (self) {
   self.conveyor(self.stack.shift()); //Err handler shouldn't be executed in order, so skip current step
+};
+
+YAFF.prototype.handlersMap[FIN] = function (self, currItem) {
+  self.stack.shift();
+  self.finHandler();
 };
 
 
 //System methods-------------------------------------------------------------------------
 
-Seq.prototype.conveyor = function () {
+YAFF.prototype.conveyor = function () {
   var currItem = this.stack[0];
   if (currItem)
     this.handlersMap[currItem.type](this, currItem);
@@ -73,9 +81,12 @@ Seq.prototype.conveyor = function () {
 
 var executor = function (currItem, self, context, merge) {
   self.concurrencyLevel++;
+  self.lastError = undefined;
   var cb = function (e) {
     self.concurrencyLevel--;
     if (e) {
+      if (!self.lastError)
+        self.lastError = e;
       return self.errHandler(e);
     } else {
       var ret = Array.prototype.slice.call(arguments, 1);
@@ -111,31 +122,41 @@ var executor = function (currItem, self, context, merge) {
   })(cb, self.args.slice()));
 };
 
-Seq.prototype.errHandler = function (e) {
+YAFF.prototype.errHandler = function (e) {
   var currItem;
   var defaultHandler = function (e) { throw e; };
   /*jshint boss:true*/
   while (currItem = this.stack[0])
-    if (currItem.type == ERR)
+    if (currItem.type == ERR) {
       return this.conveyor(currItem.fn(e));
-    else
+    } else {
       this.stack.shift(this.args.shift());
-  return this.conveyor(defaultHandler(e));
+    }
+
+  if (this.finally)
+    this.finHandler(e);
+  else
+    this.conveyor(defaultHandler(e));
+};
+
+YAFF.prototype.finHandler = function (e) {
+  e = maybe(e).getOrElse(this.lastError);
+  this.finally.apply(this.finally, [].concat(e, e ? undefined:this.args));
 };
 
 
 //Interface methods--------------------------------------------------------------------------------------------------------------------------
 
-Seq.prototype.seq = function (fn) {
+YAFF.prototype.seq = function (fn) {
   this.stack.push({fn: fn, type: SEQ});
   return this;
 };
 
-Seq.prototype.seq_ = function (fn) {
+YAFF.prototype.seq_ = function (fn) {
   return this.seq(fn).context(fn);
 };
 
-Seq.prototype.par = function (fn) {
+YAFF.prototype.par = function (fn) {
   if (this.stack.length && this.stack[this.stack.length - 1].type == PAR)
     this.stack.push({fn: fn, type: PAR, position: this.stack[this.stack.length - 1].position + 1});
   else
@@ -143,32 +164,38 @@ Seq.prototype.par = function (fn) {
   return this;
 };
 
-Seq.prototype.par_ = function (fn) {
+YAFF.prototype.par_ = function (fn) {
   return this.par(fn).context(fn);
 };
 
-Seq.prototype.catch = function (fn) {
+YAFF.prototype.finally = function (fn) {
+  this.finally = fn;
+  this.stack.push({fn: fn, type: FIN});
+  return undefined;
+};
+
+YAFF.prototype.catch = function (fn) {
   this.stack.push({fn: fn, type: ERR});
   return this;
 };
 
-Seq.prototype.limit = function (limit) {
+YAFF.prototype.limit = function (limit) {
   if (this.stack.length)
     this.stack[this.stack.length - 1].limit = limit;
   return this;
 };
 
-Seq.prototype.context = function (context) {
+YAFF.prototype.context = function (context) {
   if (this.stack.length)
     this.stack[this.stack.length - 1].context = context;
   return this;
 };
 
-Seq.prototype.forEach = function (limit, fn) {
+YAFF.prototype.forEach = function (limit, fn) {
   fn = maybe(fn).kindOf(Function).getOrElse(limit);
   limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
   return this.seq(function () {
-    var subseq = Seq();
+    var subseq = YAFF();
     subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
@@ -179,10 +206,10 @@ Seq.prototype.forEach = function (limit, fn) {
   });
 };
 
-Seq.prototype.seqEach = function (fn) {
+YAFF.prototype.seqEach = function (fn) {
   return this.seq(function () {
     var self = this;
-    var subseq = Seq();
+    var subseq = YAFF();
     subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.seq(function () {
@@ -195,12 +222,12 @@ Seq.prototype.seqEach = function (fn) {
   });
 };
 
-Seq.prototype.parEach = function (limit, fn) {
+YAFF.prototype.parEach = function (limit, fn) {
   fn = maybe(fn).kindOf(Function).getOrElse(limit);
   limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
   return this.seq(function () {
     var self = this;
-    var subseq = Seq();
+    var subseq = YAFF();
     subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
@@ -213,10 +240,10 @@ Seq.prototype.parEach = function (limit, fn) {
   });
 };
 
-Seq.prototype.seqMap = function (fn) {
+YAFF.prototype.seqMap = function (fn) {
   return this.seq(function () {
     var self = this;
-    var subseq = Seq();
+    var subseq = YAFF();
     subseq.vars = this.vars;
     var stack = [null];
     this.args.forEach(function (item, index) {
@@ -233,12 +260,12 @@ Seq.prototype.seqMap = function (fn) {
   });
 };
 
-Seq.prototype.parMap = function (limit, fn) {
+YAFF.prototype.parMap = function (limit, fn) {
   fn = maybe(fn).kindOf(Function).getOrElse(limit);
   limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
   return this.seq(function () {
     var self = this;
-    var subseq = Seq();
+    var subseq = YAFF();
     subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
@@ -251,10 +278,10 @@ Seq.prototype.parMap = function (limit, fn) {
   });
 };
 
-Seq.prototype.seqFilter = function (fn) {
+YAFF.prototype.seqFilter = function (fn) {
   return this.seq(function () {
     var self = this;
-    var subseq = Seq();
+    var subseq = YAFF();
     subseq.vars = this.vars;
     var stack = [null];
     this.args.forEach(function (item, index) {
@@ -274,12 +301,12 @@ Seq.prototype.seqFilter = function (fn) {
   });
 };
 
-Seq.prototype.parFilter = function (limit, fn) {
+YAFF.prototype.parFilter = function (limit, fn) {
   fn = maybe(fn).kindOf(Function).getOrElse(limit);
   limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
   return this.seq(function () {
     var self = this;
-    var subseq = Seq();
+    var subseq = YAFF();
     subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
@@ -293,27 +320,27 @@ Seq.prototype.parFilter = function (limit, fn) {
   });
 };
 
-Seq.prototype.map = function (fn, thisArg) {
+YAFF.prototype.map = function (fn, thisArg) {
   thisArg = maybe(thisArg).getOrElse(fn);
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.map(fn, thisArg)));
   });
 };
 
-Seq.prototype.filter = function (fn, thisArg) {
+YAFF.prototype.filter = function (fn, thisArg) {
   thisArg = maybe(thisArg).getOrElse(fn);
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.filter(fn, thisArg)));
   });
 };
 
-Seq.prototype.reduce = function (fn, initialValue) {
+YAFF.prototype.reduce = function (fn, initialValue) {
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.reduce(fn, initialValue)));
   });
 };
 
-Seq.prototype.flatten = function (fully) {
+YAFF.prototype.flatten = function (fully) {
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.reduce(function reducer(a, b) {
       return a.concat(fully && b instanceof Array ? b.reduce(reducer, []):b);
@@ -321,57 +348,57 @@ Seq.prototype.flatten = function (fully) {
   });
 };
 
-Seq.prototype.unflatten = function () {
+YAFF.prototype.unflatten = function () {
   return this.seq(function () {
     this.apply(this, [null, this.args]);
   });
 };
 
-Seq.prototype.extend = function (arr) {
+YAFF.prototype.extend = function (arr) {
   return this.seq(function () {
     this.apply(this, [null].concat(this.args, arr));
   });
 };
 
-Seq.prototype.set = function (arr) {
+YAFF.prototype.set = function (arr) {
   return this.seq(function () {
     this.apply(this, [null].concat(arr));
   });
 };
 
-Seq.prototype.empty = function () {
+YAFF.prototype.empty = function () {
   return this.seq(function () {
     this();
   });
 };
 
-Seq.prototype.push = function (/*args*/) {
+YAFF.prototype.push = function (/*args*/) {
   var args = Array.prototype.slice.call(arguments);
   return this.seq(function () {
     this.apply(this, [null].concat(this.args, args));
   });
 };
 
-Seq.prototype.pop = function () {
+YAFF.prototype.pop = function () {
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.slice(0, -1)));
   });
 };
 
-Seq.prototype.shift = function () {
+YAFF.prototype.shift = function () {
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.slice(1)));
   });
 };
 
-Seq.prototype.unshift = function (/*args*/) {
+YAFF.prototype.unshift = function (/*args*/) {
   var args = Array.prototype.slice.call(arguments);
   return this.seq(function () {
     this.apply(this, [null].concat(args, this.args));
   });
 };
 
-Seq.prototype.splice = function (index, howMany, toAppend) {
+YAFF.prototype.splice = function (index, howMany, toAppend) {
   toAppend = maybe(toAppend).kindOf(Array).getOrElse([toAppend]);
   return this.seq(function () {
     Array.prototype.splice.apply(this.args, [index, howMany].concat(toAppend));
@@ -379,15 +406,15 @@ Seq.prototype.splice = function (index, howMany, toAppend) {
   });
 };
 
-Seq.prototype.reverse = function () {
+YAFF.prototype.reverse = function () {
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.reverse()));
   });
 };
 
-Seq.prototype.debug = function () {
+YAFF.prototype.debug = function (fn) {
   var self = this;
-  return this.seq(function () {
+  var defaultDebug = function () {
     this.apply(this, [null].concat(this.args));
     log('̲........................................');
     log('->FUN STACK:');
@@ -395,5 +422,6 @@ Seq.prototype.debug = function () {
     log('->ARG STACK:');
     log(ins(self.args));
     log('........................................');
-  });
+  };
+  return this.seq(maybe(fn).getOrElse(defaultDebug));
 };

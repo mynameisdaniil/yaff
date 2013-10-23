@@ -79,14 +79,17 @@ exports.Test = function () {
         this.into(name)(null, path.join(__dirname, name));
       }
     })
-    .seq(function () {
-      log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>');
-      log(ins(this.vars));
-      // inspect(_.filter(_.flatten(this.args), function(val) { return !(/^\..+/).test(path.basename(val)); }));
-      // return callback(null, _.reject(_.flatten(_.values(this.args)), function (val) { return (/^\..+/).test(path.basename(val)); }));
+    .unflatten()
+    .seq(function (res) {
+      this('Test ERROR', res);
     })
     .catch(function (e) {
       err('ERROR: ' + e);
+    })
+    .finally(function (e, res) {
+      log('-----------------------------------------------------------------');
+      log('err:' + ins(e));
+      log('res:' + ins(res));
     });
 
 
