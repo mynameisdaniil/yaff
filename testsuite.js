@@ -7,11 +7,12 @@ exports.Seq;
 exports.Test = function () {
   this.Seq([{trololo: 'ololo'}])
     .seq(function (arg) {
-      log(ins(arg));
       log('seq function1');
-      this(!arg, 'ololo');
+      this.into('Test')(null, arg.trololo);
     })
     .par(function (arg) {
+      log(ins(this.vars));
+      log(ins(this.args));
       setTimeout(function () {
         log('par function1: ' + arg);
         this(null, 'par1');

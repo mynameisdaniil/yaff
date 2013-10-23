@@ -23,6 +23,7 @@ var Seq = module.exports = function Seq(initialStack) {
     var self = this;
     this.stack = [];
     this.queue = [];
+    this.vars = {};
     this.concurrencyLevel = 0;
     this.args = maybe(initialStack).kindOf(Array).getOrElse([]);
     process.nextTick(function waitForStack() {
@@ -94,8 +95,15 @@ var executor = function (currItem, self, context, merge) {
   };
   process.nextTick((function (cb, args) {
     cb.args = args;
+    cb.vars = self.vars;
+    cb.into = function (key) {
+      return function (e, ret) {
+        self.vars[key] = ret;
+        cb.apply(cb, Array.prototype.slice.call(arguments));
+      };
+    };
     if (context)
-      args.unshift(cb); //TODO should it go first or last
+      args.push(cb);
     return function () {
       currItem.fn.apply(context || cb, args);
     };
