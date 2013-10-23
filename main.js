@@ -267,6 +267,26 @@ Seq.prototype.parFilter = function (limit, fn) {
   });
 };
 
+Seq.prototype.map = function (fn, thisArg) {
+  thisArg = maybe(thisArg).getOrElse(fn);
+  return this.seq(function () {
+    this.apply(this, [null].concat(this.args.map(fn, thisArg)));
+  });
+};
+
+Seq.prototype.filter = function (fn, thisArg) {
+  thisArg = maybe(thisArg).getOrElse(fn);
+  return this.seq(function () {
+    this.apply(this, [null].concat(this.args.filter(fn, thisArg)));
+  });
+};
+
+Seq.prototype.reduce = function (fn, initialValue) {
+  return this.seq(function () {
+    this.apply(this, [null].concat(this.args.reduce(fn, initialValue)));
+  });
+};
+
 Seq.prototype.flatten = function (fully) {
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.reduce(function reducer(a, b) {
