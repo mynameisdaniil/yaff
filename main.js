@@ -1,6 +1,11 @@
-/*global maybe: true*/
+/**
+ * @author Daniil Sobol
+ * @license MIT
+ * @overview This library intended to be replacement of unsupported and abandoned node-seq.
+ **/
+
+/*global maybe:true*/
 var maybe = require('./maybe');
-var _     = require('lodash');
 var ins   = require('util').inspect;
 var log   = console.log;
 
