@@ -32,7 +32,7 @@ var Seq = module.exports = function Seq(initialStack) {
         setImmediate(waitForStack);
     });
   } else {
-    return new Seq();
+    return new Seq(initialStack);
   }
 };
 
