@@ -98,7 +98,8 @@ var executor = function (currItem, self, context, merge) {
     cb.vars = self.vars;
     cb.into = function (key) {
       return function (e, ret) {
-        self.vars[key] = ret;
+        if (!e)
+          self.vars[key] = ret;
         cb.apply(cb, Array.prototype.slice.call(arguments));
       };
     };
@@ -168,6 +169,7 @@ Seq.prototype.forEach = function (limit, fn) {
   limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
   return this.seq(function () {
     var subseq = Seq();
+    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
@@ -181,6 +183,7 @@ Seq.prototype.seqEach = function (fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
+    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.seq(function () {
         fn.call(this, item, index);
@@ -198,6 +201,7 @@ Seq.prototype.parEach = function (limit, fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
+    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
@@ -213,6 +217,7 @@ Seq.prototype.seqMap = function (fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
+    subseq.vars = this.vars;
     var stack = [null];
     this.args.forEach(function (item, index) {
       subseq.seq(function () {
@@ -234,6 +239,7 @@ Seq.prototype.parMap = function (limit, fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
+    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
@@ -249,6 +255,7 @@ Seq.prototype.seqFilter = function (fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
+    subseq.vars = this.vars;
     var stack = [null];
     this.args.forEach(function (item, index) {
       subseq.seq(function () {
@@ -273,6 +280,7 @@ Seq.prototype.parFilter = function (limit, fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
+    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         var that = this;
