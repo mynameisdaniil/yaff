@@ -1,7 +1,8 @@
 /*global maybe: true*/
 var maybe = require('./maybe');
 var _     = require('lodash');
-var util  = require('util');
+var ins   = require('util').inspect;
+var log   = console.log;
 
 const PAR = 'par';
 const SEQ = 'seq';
@@ -21,7 +22,6 @@ var Seq = module.exports = function Seq(initialStack) {
         setImmediate(waitForStack);
     });
   } else {
-    // console.log('creating new instance of Seq');
     return new Seq();
   }
 };
@@ -48,7 +48,6 @@ Seq.prototype.handlersMap[PAR] = function (self, currItem) {
 };
 
 Seq.prototype.handlersMap[ERR] = function (self) {
-  // console.log('skipping the error handler');
   self.conveyor(self.stack.shift()); //Err handler shouldn't be executed in order, so skip current step
 };
 
@@ -66,7 +65,6 @@ var executor = function (currItem, self, context, merge) {
   var cb = function (e) {
     self.concurrencyLevel--;
     if (e) {
-      // console.log('err happend!');
       return self.errHandler(e);
     } else {
       var ret = Array.prototype.slice.call(arguments, 1);
@@ -84,10 +82,10 @@ var executor = function (currItem, self, context, merge) {
         self.conveyor();
       });
   };
-  cb.vars = self.args;
   process.nextTick((function (cb, args) {
+    cb.args = args;
     if (context)
-      args.push(cb);
+      args.unshift(cb); //TODO should it go first or last
     return function () {
       currItem.fn.apply(context || cb, args);
     };
@@ -97,7 +95,7 @@ var executor = function (currItem, self, context, merge) {
 Seq.prototype.errHandler = function (e) {
   var currItem;
   var defaultHandler = function (e) { throw e; };
-  /*jshint boss: true*/
+  /*jshint boss:true*/
   while (currItem = this.stack[0])
     if (currItem.type == ERR)
       return this.conveyor(currItem.fn(e));
@@ -114,7 +112,7 @@ Seq.prototype.seq = function (fn) {
   return this;
 };
 
-Seq.prototype.sq_ = function (fn) {
+Seq.prototype.seq_ = function (fn) {
   return this.seq(fn).context(fn);
 };
 
@@ -126,7 +124,7 @@ Seq.prototype.par = function (fn) {
   return this;
 };
 
-Seq.prototype.pr_ = function (fn) {
+Seq.prototype.par_ = function (fn) {
   return this.par(fn).context(fn);
 };
 
@@ -152,13 +150,12 @@ Seq.prototype.forEach = function (limit, fn) {
   limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
   return this.seq(function () {
     var subseq = Seq();
-    var args = Array.prototype.slice.call(arguments);
-    args.forEach(function (item, index) {
+    this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
       }).limit(limit);
     });
-    this.apply(this, [null].concat(args));
+    this.apply(this, [null].concat(this.args));
   });
 };
 
@@ -166,14 +163,13 @@ Seq.prototype.seqEach = function (fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
-    var args = Array.prototype.slice.call(arguments);
-    args.forEach(function (item, index) {
+    this.args.forEach(function (item, index) {
       subseq.seq(function () {
         fn.call(this, item, index);
       });
     });
     subseq.seq(function () {
-      this(null, self.apply(self, [null].concat(args)));
+      this(null, self.apply(self, [null].concat(self.args)));
     }).catch(this);
   });
 };
@@ -184,14 +180,13 @@ Seq.prototype.parEach = function (limit, fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
-    var args = Array.prototype.slice.call(arguments);
-    args.forEach(function (item, index) {
+    this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
       }).limit(limit);
     });
     subseq.seq(function () {
-      this(null, self.apply(self, [null].concat(args)));
+      this(null, self.apply(self, [null].concat(self.args)));
     }).catch(this);
   });
 };
@@ -200,9 +195,8 @@ Seq.prototype.seqMap = function (fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
-    var args = Array.prototype.slice.call(arguments);
     var stack = [null];
-    args.forEach(function (item, index) {
+    this.args.forEach(function (item, index) {
       subseq.seq(function () {
         var that = this;
         fn.call(function (e, ret) {
@@ -222,39 +216,80 @@ Seq.prototype.parMap = function (limit, fn) {
   return this.seq(function () {
     var self = this;
     var subseq = Seq();
-    var args = Array.prototype.slice.call(arguments);
-    args.forEach(function (item, index) {
+    this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
       }).limit(limit);
     });
     subseq.seq(function () {
-      this(null, self.apply(self, [null].concat(Array.prototype.slice.call(arguments))));
+      this(null, self.apply(self, [null].concat(this.args)));
+    }).catch(this);
+  });
+};
+
+Seq.prototype.seqFilter = function (fn) {
+  return this.seq(function () {
+    var self = this;
+    var subseq = Seq();
+    var stack = [null];
+    this.args.forEach(function (item, index) {
+      subseq.seq(function () {
+        var that = this;
+        fn.call(function (e, ret) {
+          if (e || !ret)
+            that();
+          else
+            that(null, stack.push(item));
+        }, item, index);
+      });
+    });
+    subseq.seq(function () {
+      this(null, self.apply(self, stack));
+    }).catch(this);
+  });
+};
+
+Seq.prototype.parFilter = function (limit, fn) {
+  fn = maybe(fn).kindOf(Function).getOrElse(limit);
+  limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
+  return this.seq(function () {
+    var self = this;
+    var subseq = Seq();
+    this.args.forEach(function (item, index) {
+      subseq.par(function () {
+        var that = this;
+        fn.call(function (e, ret) { that(null, (e || !ret) ? null:item); }, item, index);
+      }).limit(limit);
+    });
+    subseq.seq(function () {
+      this(null, self.apply(self, [null].concat(this.args.filter(function (value) { return !!value; }))));
     }).catch(this);
   });
 };
 
 Seq.prototype.flatten = function (fully) {
   return this.seq(function () {
-    this.apply(this, [null].concat(_.flatten(arguments, !fully)));
+    this.apply(this, [null].concat(this.args.reduce(function reducer(a, b) {
+      return a.concat(fully && b instanceof Array ? b.reduce(reducer, []):b);
+    }, [])));
   });
 };
 
 Seq.prototype.unflatten = function () {
   return this.seq(function () {
-    this.apply(this, [null, Array.prototype.slice.call(arguments)]);
+    this.apply(this, [null, this.args]);
   });
 };
 
 Seq.prototype.extend = function (arr) {
   return this.seq(function () {
-    this.apply(this, [null].concat(Array.prototype.slice.call(arguments), arr));
+    this.apply(this, [null].concat(this.args, arr));
   });
 };
 
 Seq.prototype.set = function (arr) {
   return this.seq(function () {
-    this.apply(this, [null, arr]);
+    this.apply(this, [null].concat(arr));
   });
 };
 
@@ -267,53 +302,52 @@ Seq.prototype.empty = function () {
 Seq.prototype.push = function (/*args*/) {
   var args = Array.prototype.slice.call(arguments);
   return this.seq(function () {
-    this.apply(this, [null].concat(Array.prototype.slice.call(arguments), args));
+    this.apply(this, [null].concat(this.args, args));
   });
 };
 
 Seq.prototype.pop = function () {
   return this.seq(function () {
-    this.apply(this, [null].concat(Array.prototype.slice.call(arguments, 0, -1)));
+    this.apply(this, [null].concat(this.args.slice(0, -1)));
   });
 };
 
 Seq.prototype.shift = function () {
   return this.seq(function () {
-    this.apply(this, [null].concat(Array.prototype.slice.call(arguments, 1)));
+    this.apply(this, [null].concat(this.args.slice(1)));
   });
 };
 
 Seq.prototype.unshift = function (/*args*/) {
   var args = Array.prototype.slice.call(arguments);
   return this.seq(function () {
-    this.apply(this, [null].concat(args, Array.prototype.slice.call(arguments)));
+    this.apply(this, [null].concat(args, this.args));
   });
 };
 
 Seq.prototype.splice = function (index, howMany, toAppend) {
   toAppend = maybe(toAppend).kindOf(Array).getOrElse([toAppend]);
   return this.seq(function () {
-    var args = Array.prototype.slice.call(arguments);
-    Array.prototype.splice.apply(args, [index, howMany].concat(toAppend));
-    this.apply(this, [null].concat(args));
+    Array.prototype.splice.apply(this.args, [index, howMany].concat(toAppend));
+    this.apply(this, [null].concat(this.args));
   });
 };
 
 Seq.prototype.reverse = function () {
   return this.seq(function () {
-    this.apply(this, [null].concat(Array.prototype.slice.call(arguments).reverse()));
+    this.apply(this, [null].concat(this.args.reverse()));
   });
 };
 
 Seq.prototype.debug = function () {
   var self = this;
   return this.seq(function () {
-    this.apply(this, [null].concat(Array.prototype.slice.call(arguments)));
-    console.log('̲........................................');
-    console.log('->FUN STACK:');
-    console.log(util.inspect(self.stack));
-    console.log('->ARG STACK:');
-    console.log(util.inspect(self.args));
-    console.log('........................................');
+    this.apply(this, [null].concat(this.args));
+    log('̲........................................');
+    log('->FUN STACK:');
+    log(ins(self.stack));
+    log('->ARG STACK:');
+    log(ins(self.args));
+    log('........................................');
   });
 };
