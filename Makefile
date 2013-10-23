@@ -12,8 +12,10 @@ seq:
 	$(NODE) seq.js
 
 docs:
-	$(NDOE) $(JSDOX) --output docs ./
+	$(NODE) $(JSDOX) --output docs ./
 
 install:
 	@rm -rf $(MODULES)
 	$(NPM) install
+
+.PHONY: docs
