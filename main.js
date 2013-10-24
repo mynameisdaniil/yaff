@@ -47,7 +47,7 @@ YAFF.prototype.handlersMap = {};
 
 YAFF.prototype.handlersMap[SEQ] = function (self, currItem) {
   currItem = self.stack.shift();
-  executor(currItem, self, currItem.context);
+  executor(currItem, self);
 };
 
 YAFF.prototype.handlersMap[PAR] = function (self, currItem) {
@@ -56,7 +56,7 @@ YAFF.prototype.handlersMap[PAR] = function (self, currItem) {
     if (self.concurrencyLevel >= currItem.limit)
       self.queue.push(currItem);
     else
-      executor(currItem, self, currItem.context, true);
+      executor(currItem, self, true);
   }
   self.args = [];
 };
@@ -79,7 +79,7 @@ YAFF.prototype.conveyor = function () {
     this.handlersMap[currItem.type](this, currItem);
 };
 
-var executor = function (currItem, self, context, merge) {
+var executor = function (currItem, self, merge) {
   self.concurrencyLevel++;
   self.lastError = undefined;
   var cb = function (e) {
@@ -97,17 +97,16 @@ var executor = function (currItem, self, context, merge) {
     }
     if (self.queue.length) {
       var newItem = self.queue.pop();
-      return executor(newItem, self, newItem.context, true);
+      return executor(newItem, self, true);
     }
     if (!self.concurrencyLevel)
       process.nextTick(function () {
         self.conveyor();
       });
   };
-  process.nextTick((function (cb, context, args) {
+  process.nextTick((function (cb, args) {
     cb.args = args;
     cb.vars = self.vars;
-    cb.context = context;
     cb.into = function (key) {
       return function (e, ret) {
         if (!e)
@@ -115,12 +114,10 @@ var executor = function (currItem, self, context, merge) {
         cb.apply(cb, Array.prototype.slice.call(arguments));
       };
     };
-    if (context)
-      args.unshift(cb);
     return function () {
-      currItem.fn.apply(context || cb, args);
+      currItem.fn.apply(cb, args);
     };
-  })(cb, context, self.args.slice()));
+  })(cb, self.args.slice()));
 };
 
 YAFF.prototype.errHandler = function (e) {
@@ -155,10 +152,7 @@ YAFF.prototype.seq = function (fn) {
 
 YAFF.prototype.seq_ = function (fn) {
   var args = Array.prototype.slice.call(arguments, 1);
-  return this.seq(function (cb) {
-    cb = maybe(cb).map(function (cb) { return cb.context ? cb:undefined; }).getOrElse(this);
-    fn.apply(maybe(cb.context).getOrElse(fn), args.concat(cb));
-  });
+  return this.seq(function () { fn.apply(fn, args.concat(this)); });
 };
 
 YAFF.prototype.par = function (fn) {
@@ -171,10 +165,7 @@ YAFF.prototype.par = function (fn) {
 
 YAFF.prototype.par_ = function (fn) {
   var args = Array.prototype.slice.call(arguments, 1);
-  return this.par(function (cb) {
-    cb = maybe(cb).map(function (cb) { return cb.context ? cb:undefined; }).getOrElse(this);
-    fn.apply(maybe(cb.context).getOrElse(fn), args.concat(cb));
-  });
+  return this.par(function () { fn.apply(fn, args.concat(this)); });
 };
 
 YAFF.prototype.finally = function (fn) {
@@ -193,14 +184,6 @@ YAFF.prototype.limit = function (limit) {
     this.stack[this.stack.length - 1].limit = limit;
   return this;
 };
-
-YAFF.prototype.context = function (context) { //TODO maybe remove it
-  if (this.stack.length)
-    this.stack[this.stack.length - 1].context = context;
-  return this;
-};
-
-YAFF.prototype.ctx = YAFF.prototype.context;
 
 YAFF.prototype.forEach = function (limit, fn) {
   fn = maybe(fn).kindOf(Function).getOrElse(limit);
