@@ -85,13 +85,13 @@ exports.Test = function () {
   this.Seq()
     .seq_(fs.readdir, __dirname)
     .flatten()
-    .parEach(function (name) {
+    .parMap(function (name) {
       log('name: ' + name);
       if (fs.statSync(path.join(__dirname, name)).isDirectory()) {
         var index = path.join(__dirname, name, 'index.js');
-        this.into(name)(null, fs.existsSync(index) ? index:null);
+        this(null, fs.existsSync(index) ? index:null);
       } else {
-        this.into(name)(null, path.join(__dirname, name));
+        this(null, path.join(__dirname, name));
       }
     })
     .unflatten()
