@@ -95,7 +95,7 @@ exports.Test = function () {
       }
     })
     .unflatten()
-    .seq_(tst.echo, 'hello world!').context(tst)
+    .seq_(tst.echo.bind(tst), 'hello world!')
     .catch(function (e) {
       err('ERROR: ' + e);
     })
