@@ -152,7 +152,7 @@ YAFF.prototype.seq = function (fn) {
 
 YAFF.prototype.seq_ = function (fn) {
   var args = Array.prototype.slice.call(arguments, 1);
-  return this.seq(function () { fn.apply(fn, args.concat(this)); });
+  return this.seq(function () { fn.apply(fn, (args.length ? args:this.args).concat(this)); });
 };
 
 YAFF.prototype.par = function (fn) {
@@ -165,7 +165,7 @@ YAFF.prototype.par = function (fn) {
 
 YAFF.prototype.par_ = function (fn) {
   var args = Array.prototype.slice.call(arguments, 1);
-  return this.par(function () { fn.apply(fn, args.concat(this)); });
+  return this.par(function () { fn.apply(fn, (args.length ? args:this.args).concat(this)); });
 };
 
 YAFF.prototype.finally = function (fn) {
