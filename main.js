@@ -24,7 +24,6 @@ var YAFF = module.exports = function YAFF(initialStack) {
     var self = this;
     this.stack = [];
     this.queue = [];
-    this.vars = {};
     this.finally;
     this.lastError;
     this.concurrencyLevel = 0;
@@ -106,14 +105,6 @@ var executor = function (currItem, self, merge) {
   };
   process.nextTick((function (cb, args) {
     cb.args = args;
-    cb.vars = self.vars;
-    cb.into = function (key) {
-      return function (e, ret) {
-        if (!e)
-          self.vars[key] = ret;
-        cb.apply(cb, Array.prototype.slice.call(arguments));
-      };
-    };
     return function () {
       currItem.fn.apply(cb, args);
     };
@@ -190,7 +181,6 @@ YAFF.prototype.forEach = function (limit, fn) {
   limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
   return this.seq(function () {
     var subseq = YAFF();
-    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
@@ -204,7 +194,6 @@ YAFF.prototype.seqEach = function (fn) {
   return this.seq(function () {
     var self = this;
     var subseq = YAFF();
-    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.seq(function () {
         fn.call(this, item, index);
@@ -222,7 +211,6 @@ YAFF.prototype.parEach = function (limit, fn) {
   return this.seq(function () {
     var self = this;
     var subseq = YAFF();
-    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
@@ -238,7 +226,6 @@ YAFF.prototype.seqMap = function (fn) {
   return this.seq(function () {
     var self = this;
     var subseq = YAFF();
-    subseq.vars = this.vars;
     var stack = [null];
     this.args.forEach(function (item, index) {
       subseq.seq(function () {
@@ -260,7 +247,6 @@ YAFF.prototype.parMap = function (limit, fn) {
   return this.seq(function () {
     var self = this;
     var subseq = YAFF();
-    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
@@ -276,7 +262,6 @@ YAFF.prototype.seqFilter = function (fn) {
   return this.seq(function () {
     var self = this;
     var subseq = YAFF();
-    subseq.vars = this.vars;
     var stack = [null];
     this.args.forEach(function (item, index) {
       subseq.seq(function () {
@@ -301,7 +286,6 @@ YAFF.prototype.parFilter = function (limit, fn) {
   return this.seq(function () {
     var self = this;
     var subseq = YAFF();
-    subseq.vars = this.vars;
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         var that = this;
