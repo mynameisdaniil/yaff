@@ -65,7 +65,7 @@ YAFF.prototype.handlersMap[ERR] = function (self) {
   self.conveyor(self.stack.shift()); //Err handler shouldn't be executed in order, so skip current step
 };
 
-YAFF.prototype.handlersMap[FIN] = function (self, currItem) {
+YAFF.prototype.handlersMap[FIN] = function (self) {
   self.stack.shift();
   self.finHandler();
 };
@@ -104,9 +104,10 @@ var executor = function (currItem, self, context, merge) {
         self.conveyor();
       });
   };
-  process.nextTick((function (cb, args) {
+  process.nextTick((function (cb, context, args) {
     cb.args = args;
     cb.vars = self.vars;
+    cb.context = context;
     cb.into = function (key) {
       return function (e, ret) {
         if (!e)
@@ -115,11 +116,11 @@ var executor = function (currItem, self, context, merge) {
       };
     };
     if (context)
-      args.push(cb);
+      args.unshift(cb);
     return function () {
       currItem.fn.apply(context || cb, args);
     };
-  })(cb, self.args.slice()));
+  })(cb, context, self.args.slice()));
 };
 
 YAFF.prototype.errHandler = function (e) {
@@ -153,7 +154,11 @@ YAFF.prototype.seq = function (fn) {
 };
 
 YAFF.prototype.seq_ = function (fn) {
-  return this.seq(fn).context(fn);
+  var args = Array.prototype.slice.call(arguments, 1);
+  return this.seq(function (cb) {
+    cb = maybe(cb).map(function (cb) { return cb.context ? cb:undefined; }).getOrElse(this);
+    fn.apply(maybe(cb.context).getOrElse(fn), args.concat(cb));
+  });
 };
 
 YAFF.prototype.par = function (fn) {
@@ -165,7 +170,11 @@ YAFF.prototype.par = function (fn) {
 };
 
 YAFF.prototype.par_ = function (fn) {
-  return this.par(fn).context(fn);
+  var args = Array.prototype.slice.call(arguments, 1);
+  return this.par(function (cb) {
+    cb = maybe(cb).map(function (cb) { return cb.context ? cb:undefined; }).getOrElse(this);
+    fn.apply(maybe(cb.context).getOrElse(fn), args.concat(cb));
+  });
 };
 
 YAFF.prototype.finally = function (fn) {
@@ -185,7 +194,7 @@ YAFF.prototype.limit = function (limit) {
   return this;
 };
 
-YAFF.prototype.context = function (context) {
+YAFF.prototype.context = function (context) { //TODO maybe remove it
   if (this.stack.length)
     this.stack[this.stack.length - 1].context = context;
   return this;

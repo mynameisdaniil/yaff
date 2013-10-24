@@ -63,14 +63,29 @@ exports.Test = function () {
   //     log('post apocalypse');
   //   });
 
+  var Test = function Test() {
+    this.prefix = 'ECHO: ';
+  };
+  Test.prototype.echo = function (msg, cb) {
+    cb(null, this.prefix + msg);
+  };
+  Test.prototype.err = function (cb) {
+    cb(new Error('Test error'));
+  };
+  
+  var tst = new Test();
+
+  // log('!!!');
+  // tst.echo('first test', function (e, msg) {
+  //   log(msg);
+  // });
+  // log(!!tst);
+  // log('!!!');
+
   this.Seq()
-    .seq(function () {
-      fs.readdir(__dirname, this);
-    })
+    .seq_(fs.readdir, __dirname)
     .flatten()
     .parEach(function (name) {
-      // log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>');
-      // log(ins(this.args));
       log('name: ' + name);
       if (fs.statSync(path.join(__dirname, name)).isDirectory()) {
         var index = path.join(__dirname, name, 'index.js');
@@ -80,9 +95,7 @@ exports.Test = function () {
       }
     })
     .unflatten()
-    .seq(function (res) {
-      this('Test ERROR', res);
-    })
+    .seq_(tst.echo, 'hello world!').context(tst)
     .catch(function (e) {
       err('ERROR: ' + e);
     })
