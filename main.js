@@ -20,23 +20,21 @@ const FIN = 'fin';
  * @Class YAFF
  **/
 var YAFF = module.exports = function YAFF(initialStack) {
-  if (this instanceof YAFF) {
-    var self = this;
-    this.stack = [];
-    this.queue = [];
-    this.finally;
-    this.lastError;
-    this.concurrencyLevel = 0;
-    this.args = maybe(initialStack).kindOf(Array).getOrElse([]);
-    process.nextTick(function waitForStack() {
-      if (self.stack.length)
-        self.conveyor();
-      else
-        setImmediate(waitForStack);
-    });
-  } else {
+  if (!(this instanceof YAFF))
     return new YAFF(initialStack);
-  }
+  var self = this;
+  this.stack = [];
+  this.queue = [];
+  this.finally;
+  this.lastError;
+  this.concurrencyLevel = 0;
+  this.args = maybe(initialStack).kindOf(Array).getOrElse([]);
+  process.nextTick(function waitForStack() {
+    if (self.stack.length)
+      self.conveyor();
+    else
+      setImmediate(waitForStack);
+  });
 };
 
 
