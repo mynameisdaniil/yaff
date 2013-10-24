@@ -200,6 +200,8 @@ YAFF.prototype.context = function (context) { //TODO maybe remove it
   return this;
 };
 
+YAFF.prototype.ctx = YAFF.prototype.context;
+
 YAFF.prototype.forEach = function (limit, fn) {
   fn = maybe(fn).kindOf(Function).getOrElse(limit);
   limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
