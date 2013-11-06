@@ -8,10 +8,9 @@ module.exports = function __maybe(value) {
   obj = {
     map: function (f) { return isEmpty() ? obj : __maybe(f(value)); },
     getOrElse: function (n) { return isEmpty() ? n : value; },
-    kindOf: function (type) { return is(type) ? obj : __maybe(); },
+    is: function (type) { return is(type) ? obj : __maybe(); },
     isEmpty: isEmpty,
     nonEmpty: nonEmpty,
-    is: is
   };
   return obj;
 };

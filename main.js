@@ -7,7 +7,7 @@
  **/
 
 /*global maybe:true*/
-var maybe = require('./maybe');
+var maybe = require('maybe2');
 var ins   = require('util').inspect;
 var log   = console.log;
 
@@ -28,7 +28,7 @@ var YAFF = module.exports = function YAFF(initialStack) {
   this.finally;
   this.lastError;
   this.concurrencyLevel = 0;
-  this.args = maybe(initialStack).kindOf(Array).getOrElse([]);
+  this.args = maybe(initialStack).is(Array).getOrElse([]);
   process.nextTick(function waitForStack() {
     if (self.stack.length)
       self.conveyor();
@@ -175,8 +175,8 @@ YAFF.prototype.limit = function (limit) {
 };
 
 YAFF.prototype.forEach = function (limit, fn) {
-  fn = maybe(fn).kindOf(Function).getOrElse(limit);
-  limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
+  fn = maybe(fn).is(Function).getOrElse(limit);
+  limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
     var subseq = YAFF();
     this.args.forEach(function (item, index) {
@@ -204,8 +204,8 @@ YAFF.prototype.seqEach = function (fn) {
 };
 
 YAFF.prototype.parEach = function (limit, fn) {
-  fn = maybe(fn).kindOf(Function).getOrElse(limit);
-  limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
+  fn = maybe(fn).is(Function).getOrElse(limit);
+  limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
     var self = this;
     var subseq = YAFF();
@@ -240,8 +240,8 @@ YAFF.prototype.seqMap = function (fn) {
 };
 
 YAFF.prototype.parMap = function (limit, fn) {
-  fn = maybe(fn).kindOf(Function).getOrElse(limit);
-  limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
+  fn = maybe(fn).is(Function).getOrElse(limit);
+  limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
     var self = this;
     var subseq = YAFF();
@@ -279,8 +279,8 @@ YAFF.prototype.seqFilter = function (fn) {
 };
 
 YAFF.prototype.parFilter = function (limit, fn) {
-  fn = maybe(fn).kindOf(Function).getOrElse(limit);
-  limit = maybe(limit).kindOf(Number).getOrElse(Infinity);
+  fn = maybe(fn).is(Function).getOrElse(limit);
+  limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
     var self = this;
     var subseq = YAFF();
@@ -350,7 +350,7 @@ YAFF.prototype.empty = function () {
 
 YAFF.prototype.push = function (/*args*/) {
   var args = Array.prototype.slice.call(arguments);
-  return this.seq(function () {
+  return this.seq(function () {//TODO seq -> seq_
     this.apply(this, [null].concat(this.args, args));
   });
 };
@@ -375,7 +375,7 @@ YAFF.prototype.unshift = function (/*args*/) {
 };
 
 YAFF.prototype.splice = function (index, howMany, toAppend) {
-  toAppend = maybe(toAppend).kindOf(Array).getOrElse([toAppend]);
+  toAppend = maybe(toAppend).is(Array).getOrElse([toAppend]);
   return this.seq(function () {
     Array.prototype.splice.apply(this.args, [index, howMany].concat(toAppend));
     this.apply(this, [null].concat(this.args));
