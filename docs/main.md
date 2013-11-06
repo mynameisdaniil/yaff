@@ -42,13 +42,13 @@ Like with seq, the first argument to ```this()``` should be the error value and 
 .finally(callback)
 ------------------
 ```finally``` does what you intended it to do. It is executed synchronously so, no need to call ```this()```. ```finally``` catches results as well as errors in nodejs manner, so first argument will be error and rest arguments are results. It's handly if you use YAFF inside asyncronous function like that:
-```js
+```javascript
 var myAsyncFunction = funtion(callback) {
-YAFF()
-.par(...)
-.par(...)
-.seq(...)
-.finally(callback)
+  YAFF()
+    .par(...)
+    .par(...)
+    .seq(...)
+    .finally(callback)
 }
 ```
 
