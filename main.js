@@ -36,7 +36,7 @@ var YAFF = module.exports = function YAFF(initialStack) {
   var self = this;
   this.stack = [];
   this.queue = [];
-  this.finally;
+  this.fin;
   this.lastError;
   this.concurrencyLevel = 0;
   this.args = maybe(initialStack).is(Array).getOrElse([]);
@@ -131,7 +131,7 @@ YAFF.prototype.errHandler = function (e) {
       this.stack.shift(this.args.shift());
     }
 
-  if (this.finally)
+  if (this.fin)
     this.finHandler(e);
   else
     this.conveyor(defaultHandler(e));
@@ -139,7 +139,7 @@ YAFF.prototype.errHandler = function (e) {
 
 YAFF.prototype.finHandler = function (e) {
   e = maybe(e).getOrElse(this.lastError);
-  this.finally.apply(this.finally, [].concat(e, e ? undefined:this.args));
+  this.fin.apply(this.fin, [].concat(e, e ? undefined:this.args));
 };
 
 
@@ -180,10 +180,23 @@ YAFF.prototype.par_ = function (fn) {
 };
 
 /**
- * ```finally``` does what you intended it to do. It is executed synchronously so, no need to call ```this()```. ```finally``` catches results as well as errors in nodejs manner, so first argument will be error and rest arguments are results. It's handly if you use YAFF inside asyncronous function like that:
- * ```js
+ * Catch errors. Whenever a function calls ```this``` with a non-falsy first argument, the message propagates down the chain to the first catch it sees. The ```callback``` fires with the error object as its first argument.
+* ```catch``` is a syncronous sequential action and further actions may appear after a catch in a chain. If the execution reaches a catch in a chain and no error has occured, the catch is skipped over.
+ * For convenience, there is a default error handler at the end of all chains. This default error just *throws* the error out.
+ * @param {function} callback Syncronous error handler
+ */
+YAFF.prototype.catch = function (fn) {
+  this.stack.push({fn: fn, type: ERR});
+  return this;
+};
+
+/**
+ * Finalizes the chain. Unlike ```catch``` it handles errors as well as results and fires provided callback in nodejs manner, so first argument becomes error (may be ```undefined``` if everything is ok) and the rest arguments are results (may be ```undefined``` too if there is an error). ```finally``` is a syncronous sequential action. You can only have one ```finally``` block per chain and it should be in the very end of the chain.
+ *
+ * It's handly if you use it inside asyncronous functions like that:
+ * ```javascript
  * var myAsyncFunction = funtion(callback) {
- *   YAFF()
+ *      YAFF()
  *     .par(...)
  *     .par(...)
  *     .seq(...)
@@ -193,14 +206,9 @@ YAFF.prototype.par_ = function (fn) {
  * @param {function} callback Function to be executed at the very end of the chain
  */
 YAFF.prototype.finally = function (fn) {
-  this.finally = fn;
+  this.fin = fn;
   this.stack.push({fn: fn, type: FIN});
   return undefined;
-};
-
-YAFF.prototype.catch = function (fn) {
-  this.stack.push({fn: fn, type: ERR});
-  return this;
 };
 
 YAFF.prototype.limit = function (limit) {

@@ -10,7 +10,7 @@ exports.Test = function () {
   // this.Seq([{trololo: 'ololo'}])
   //   .seq(function (arg) {
   //     log('seq function1');
-  //     this.into('Test')(null, arg.trololo);
+  //     this(null, arg.trololo);
   //   })
   //   .par(function (arg) {
   //     log(ins(this.vars));
@@ -64,47 +64,41 @@ exports.Test = function () {
   //     log('post apocalypse');
   //   });
 
-  var Test = function Test() {
-    this.prefix = 'ECHO: ';
-  };
-  Test.prototype.echo = function (msg, cb) {
-    cb(null, this.prefix + msg);
-  };
-  Test.prototype.err = function (cb) {
-    cb(new Error('Test error'));
-  };
-  
-  var tst = new Test();
+  // var Test = function Test() {
+  //   this.prefix = 'ECHO: ';
+  // };
+  // Test.prototype.echo = function (msg, cb) {
+  //   cb(null, this.prefix + msg);
+  // };
+  // Test.prototype.err = function (cb) {
+  //   cb(new Error('Test error'));
+  // };
+  // 
+  // var tst = new Test();
 
-  // log('!!!');
-  // tst.echo('first test', function (e, msg) {
-  //   log(msg);
-  // });
-  // log(!!tst);
-  // log('!!!');
-
-  this.Seq()
-    .seq_(fs.readdir, __dirname)
-    .flatten()
-    .parMap(function (name) {
-      log('name: ' + name);
-      if (fs.statSync(path.join(__dirname, name)).isDirectory()) {
-        var index = path.join(__dirname, name, 'index.js');
-        this(null, fs.existsSync(index) ? index:null);
-      } else {
-        this(null, path.join(__dirname, name));
-      }
-    })
-    .unflatten()
-    .seq_(tst.echo.bind(tst), 'hello world!')
-    .catch(function (e) {
-      err('ERROR: ' + e);
-    })
-    .finally(function (e, res) {
-      log('-----------------------------------------------------------------');
-      log('err:' + ins(e));
-      log('res:' + ins(res));
-    });
+  // this.Seq()
+  //   .seq_(fs.readdir, __dirname)
+  //   .flatten()
+  //   .parMap(function (name) {
+  //     log('name: ' + name);
+  //     if (fs.statSync(path.join(__dirname, name)).isDirectory()) {
+  //       var index = path.join(__dirname, name, 'index.js');
+  //       this(null, fs.existsSync(index) ? index:null);
+  //     } else {
+  //       this(null, path.join(__dirname, name));
+  //     }
+  //   })
+  //   .unflatten()
+  //   .seq_(tst.echo.bind(tst), 'hello world!')
+  //   .catch(function (e) {
+  //     err('ERROR: ' + e);
+  //   })
+  //   .finally(function (e, res) {
+  //     log('-----------------------------------------------------------------');
+  //     if (e)
+  //       return log('err:' + ins(e));
+  //     log('res:' + ins(res));
+  //   });
 
 
   // this.Seq()
@@ -140,4 +134,12 @@ exports.Test = function () {
   //   log('----------------------------------------');
   //   setImmediate(eventLoopTracker);
   // });
+  
+  this.Seq([1, 2, 3])
+    .parMap(function (i) {
+      this('error#' + i);
+    })
+    .finally(function (err) {
+      log(err);
+    });
 };
