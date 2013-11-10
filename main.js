@@ -301,7 +301,7 @@ YAFF.prototype.seqFilter = function (fn) {
           that();
         }, item, index);
       })
-      .finally(this);
+      .set(stack).finally(this);
   });
 };
 
@@ -320,7 +320,7 @@ YAFF.prototype.parFilter = function (limit, fn) {
           that();
         }, item, index);
       })
-      .finally(this);
+      .set(stack).finally(this);
   });
 };
 
