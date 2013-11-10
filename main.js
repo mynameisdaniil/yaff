@@ -10,6 +10,7 @@
 var maybe = require('maybe2');
 var ins   = require('util').inspect;
 var log   = console.log;
+var slice = Array.prototype.slice.call.bind(Array.prototype.slice);
 
 const PAR = 'par';
 const SEQ = 'seq';
@@ -97,7 +98,7 @@ var executor = function (currItem, self, merge) {
         self.lastError = e;
       return self.errHandler(e);
     } else {
-      var ret = Array.prototype.slice.call(arguments, 1);
+      var ret = slice(arguments, 1);
       if (merge)
         self.args[currItem.position] = ret.length > 1 ? ret:ret[0];
       else
@@ -156,7 +157,7 @@ YAFF.prototype.seq = function (fn) {
 };
 
 YAFF.prototype.seq_ = function (fn) {
-  var args = Array.prototype.slice.call(arguments, 1);
+  var args = slice(arguments, 1);
   return this.seq(function () { fn.apply(fn, (args.length ? args:this.args).concat(this)); });
 };
 
@@ -175,7 +176,7 @@ YAFF.prototype.par = function (fn) {
 };
 
 YAFF.prototype.par_ = function (fn) {
-  var args = Array.prototype.slice.call(arguments, 1);
+  var args = slice(arguments, 1);
   return this.par(function () { fn.apply(fn, (args.length ? args:this.args).concat(this)); });
 };
 
@@ -233,16 +234,13 @@ YAFF.prototype.forEach = function (limit, fn) {
 
 YAFF.prototype.seqEach = function (fn) {
   return this.seq(function () {
-    var self = this;
     var subseq = YAFF();
     this.args.forEach(function (item, index) {
       subseq.seq(function () {
         fn.call(this, item, index);
       });
     });
-    subseq.seq(function () {
-      this(null, self.apply(self, [null].concat(self.args)));
-    }).catch(this);
+    subseq.set(this.args).finally(this);
   });
 };
 
@@ -250,24 +248,20 @@ YAFF.prototype.parEach = function (limit, fn) {
   fn = maybe(fn).is(Function).getOrElse(limit);
   limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
-    var self = this;
     var subseq = YAFF();
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
       }).limit(limit);
     });
-    subseq.seq(function () {
-      this(null, self.apply(self, [null].concat(self.args)));
-    }).catch(this);
+    subseq.set(this.args).finally(this);
   });
 };
 
 YAFF.prototype.seqMap = function (fn) {
   return this.seq(function () {
-    var self = this;
     var subseq = YAFF();
-    var stack = [null];
+    var stack = [];
     this.args.forEach(function (item, index) {
       subseq.seq(function () {
         var that = this;
@@ -276,9 +270,7 @@ YAFF.prototype.seqMap = function (fn) {
         }, item, index);
       });
     });
-    subseq.seq(function () {
-      this(null, self.apply(self, stack));
-    }).catch(this);
+    subseq.set(stack).finally(this);
   });
 };
 
@@ -286,38 +278,30 @@ YAFF.prototype.parMap = function (limit, fn) {
   fn = maybe(fn).is(Function).getOrElse(limit);
   limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
-    var self = this;
     var subseq = YAFF();
     this.args.forEach(function (item, index) {
       subseq.par(function () {
         fn.call(this, item, index);
       }).limit(limit);
     });
-    subseq.seq(function () {
-      this(null, self.apply(self, [null].concat(this.args)));
-    }).catch(this);
+    subseq.finally(this);
   });
 };
 
 YAFF.prototype.seqFilter = function (fn) {
   return this.seq(function () {
-    var self = this;
-    var subseq = YAFF();
-    var stack = [null];
-    this.args.forEach(function (item, index) {
-      subseq.seq(function () {
+    var stack = [];
+    YAFF()
+      .set(this.args)
+      .seqEach(function (item, index) {
         var that = this;
         fn.call(function (e, ret) {
-          if (e || !ret)
-            that();
-          else
-            that(null, stack.push(item));
+          if (ret && !e)
+            stack.push(ret);
+          that();
         }, item, index);
-      });
-    });
-    subseq.seq(function () {
-      this(null, self.apply(self, stack));
-    }).catch(this);
+      })
+      .finally(this);
   });
 };
 
@@ -325,17 +309,18 @@ YAFF.prototype.parFilter = function (limit, fn) {
   fn = maybe(fn).is(Function).getOrElse(limit);
   limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
-    var self = this;
-    var subseq = YAFF();
-    this.args.forEach(function (item, index) {
-      subseq.par(function () {
+    var stack = [];
+    YAFF()
+      .set(this.args)
+      .parEach(limit, function (item, index) {
         var that = this;
-        fn.call(function (e, ret) { that(null, (e || !ret) ? null:item); }, item, index);
-      }).limit(limit);
-    });
-    subseq.seq(function () {
-      this(null, self.apply(self, [null].concat(this.args.filter(function (value) { return !!value; }))));
-    }).catch(this);
+        fn.call(function (e, ret) {
+          if (ret && !e)
+            stack.push(ret);
+          that();
+        }, item, index);
+      })
+      .finally(this);
   });
 };
 
@@ -392,7 +377,7 @@ YAFF.prototype.empty = function () {
 };
 
 YAFF.prototype.push = function (/*args*/) {
-  var args = Array.prototype.slice.call(arguments);
+  var args = slice(arguments);
   return this.seq(function () {//TODO seq -> seq_
     this.apply(this, [null].concat(this.args, args));
   });
@@ -411,7 +396,7 @@ YAFF.prototype.shift = function () {
 };
 
 YAFF.prototype.unshift = function (/*args*/) {
-  var args = Array.prototype.slice.call(arguments);
+  var args = slice(arguments);
   return this.seq(function () {
     this.apply(this, [null].concat(args, this.args));
   });
