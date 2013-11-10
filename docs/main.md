@@ -57,11 +57,11 @@ Finalizes the chain. Unlike ```catch``` it handles errors as well as results and
 It's handly if you use it inside asyncronous functions like that:
 ```javascript
 var myAsyncFunction = funtion(callback) {
-YAFF()
-.par(...)
-.par(...)
-.seq(...)
-.finally(callback)
+  YAFF()
+    .par(...)
+    .par(...)
+    .seq(...)
+    .finally(callback)
 }
 ```
 
