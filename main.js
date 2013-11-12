@@ -219,8 +219,8 @@ YAFF.prototype.limit = function (limit) {
 };
 
 YAFF.prototype.iterate = function (method, fn, limit) {
-  this.args.forEach(function (item, index) {
-    method.call(this, function () { fn.call(this, item, index); }).limit(limit);
+  this.args.forEach(function (item, index, args) {
+    method.call(this, function () { fn.call(this, item, index, args, this); }).limit(limit);
   }, this);
   return this;
 };
@@ -250,17 +250,12 @@ YAFF.prototype.parEach = function (limit, fn) {
 
 YAFF.prototype.seqMap = function (fn) {
   return this.seq(function () {
-    var subseq = YAFF();
     var stack = [];
-    this.args.forEach(function (item, index) {
-      subseq.seq(function () {
-        var that = this;
+    YAFF(this.args).iterate(YAFF.prototype.seq, function (item, index, args, cb) {
         fn.call(function (e, ret) {
-          that(e, stack.push(ret));
-        }, item, index);
-      });
-    });
-    subseq.set(stack).finally(this);
+          cb(e, stack.push(ret));
+        }, item, index, args);
+      }).set(stack).finally(this);
   });
 };
 
@@ -268,27 +263,19 @@ YAFF.prototype.parMap = function (limit, fn) {
   fn = maybe(fn).is(Function).getOrElse(limit);
   limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
-    var subseq = YAFF();
-    this.args.forEach(function (item, index) {
-      subseq.par(function () {
-        fn.call(this, item, index);
-      }).limit(limit);
-    });
-    subseq.finally(this);
+    YAFF(this.args).iterate(YAFF.prototype.par, fn, limit).finally(this);
   });
 };
 
 YAFF.prototype.seqFilter = function (fn) {
   return this.seq(function () {
     var stack = [];
-    YAFF(this.args)
-      .seqEach(function (item, index) {
-        var that = this;
+    YAFF(this.args).seqEach(function (item, index, args, cb) {
         fn.call(function (e, ret) {
           if (ret && !e)
             stack.push(ret);
-          that();
-        }, item, index);
+          cb();
+        }, item, index, args);
       })
       .set(stack).finally(this);
   });
@@ -299,16 +286,13 @@ YAFF.prototype.parFilter = function (limit, fn) {
   limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
     var stack = [];
-    YAFF(this.args)
-      .parEach(limit, function (item, index) {
-        var that = this;
+    YAFF(this.args).parEach(limit, function (item, index, args, cb) {
         fn.call(function (e, ret) {
           if (ret && !e)
             stack.push(ret);
-          that();
-        }, item, index);
-      })
-      .set(stack).finally(this);
+          cb();
+        }, item, index, args);
+      }).set(stack).finally(this);
   });
 };
 
