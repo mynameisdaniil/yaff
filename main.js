@@ -218,29 +218,25 @@ YAFF.prototype.limit = function (limit) {
   return this;
 };
 
+YAFF.prototype.iterate = function (method, fn, limit) {
+  this.args.forEach(function (item, index) {
+    method.call(this, function () { fn.call(this, item, index); }).limit(limit);
+  }, this);
+  return this;
+};
+
 YAFF.prototype.forEach = function (limit, fn) {
   fn = maybe(fn).is(Function).getOrElse(limit);
   limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
-    var subseq = YAFF();
-    this.args.forEach(function (item, index) {
-      subseq.par(function () {
-        fn.call(this, item, index);
-      }).limit(limit);
-    });
+    YAFF(this.args).iterate(YAFF.prototype.par, fn, limit);
     this.apply(this, [null].concat(this.args));
   });
 };
 
 YAFF.prototype.seqEach = function (fn) {
   return this.seq(function () {
-    var subseq = YAFF();
-    this.args.forEach(function (item, index) {
-      subseq.seq(function () {
-        fn.call(this, item, index);
-      });
-    });
-    subseq.set(this.args).finally(this);
+    YAFF(this.args).iterate(YAFF.prototype.seq, fn).set(this.args).finally(this);
   });
 };
 
@@ -248,13 +244,7 @@ YAFF.prototype.parEach = function (limit, fn) {
   fn = maybe(fn).is(Function).getOrElse(limit);
   limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
-    var subseq = YAFF();
-    this.args.forEach(function (item, index) {
-      subseq.par(function () {
-        fn.call(this, item, index);
-      }).limit(limit);
-    });
-    subseq.set(this.args).finally(this);
+    YAFF(this.args).iterate(YAFF.prototype.par, fn, limit).set(this.args).finally(this);
   });
 };
 
@@ -291,8 +281,7 @@ YAFF.prototype.parMap = function (limit, fn) {
 YAFF.prototype.seqFilter = function (fn) {
   return this.seq(function () {
     var stack = [];
-    YAFF()
-      .set(this.args)
+    YAFF(this.args)
       .seqEach(function (item, index) {
         var that = this;
         fn.call(function (e, ret) {
@@ -310,8 +299,7 @@ YAFF.prototype.parFilter = function (limit, fn) {
   limit = maybe(limit).is(Number).getOrElse(Infinity);
   return this.seq(function () {
     var stack = [];
-    YAFF()
-      .set(this.args)
+    YAFF(this.args)
       .parEach(limit, function (item, index) {
         var that = this;
         fn.call(function (e, ret) {

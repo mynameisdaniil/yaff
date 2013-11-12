@@ -134,12 +134,21 @@ exports.Test = function () {
   //   log('----------------------------------------');
   //   setImmediate(eventLoopTracker);
   // });
-  
-  this.Seq([1, 2, 3])
-    .parMap(function (i) {
-      this('error#' + i);
+
+  this.Seq(['one', 'two', 'three'])
+    .forEach(function (item, index) {
+      log(item, ': ', index);
+      this();
     })
-    .finally(function (err) {
-      log(err);
+    .finally(function (e, res) {
+      log('e: ' + e,  '\tres: ' + res);
     });
+  
+  // this.Seq([1, 2, 3])
+  //   .parMap(function (i) {
+  //     this('error#' + i);
+  //   })
+  //   .finally(function (err) {
+  //     log(err);
+  //   });
 };
