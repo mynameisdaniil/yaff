@@ -79,7 +79,6 @@ YAFF.prototype.handlersMap[FIN] = function (self) {
   self.finHandler();
 };
 
-
 //System methods-------------------------------------------------------------------------
 
 YAFF.prototype.conveyor = function () {
@@ -198,17 +197,16 @@ YAFF.prototype.catch = function (fn) {
  * ```javascript
  * var myAsyncFunction = funtion(callback) {
  *      YAFF()
- *     .par(...)
- *     .par(...)
- *     .seq(...)
- *     .finally(callback)
+ *        .par(...)
+ *        .par(...)
+ *        .seq(...)
+ *        .finally(callback)
  * }
  * ```
  * @param {function} callback Function to be executed at the very end of the chain
  */
 YAFF.prototype.finally = function (fn) {
-  this.fin = fn;
-  this.stack.push({fn: fn, type: FIN});
+  this.stack.push({fn: this.fin = fn, type: FIN});
   return undefined;
 };
 
@@ -276,8 +274,7 @@ YAFF.prototype.seqFilter = function (fn) {
             stack.push(ret);
           cb();
         }, item, index, args);
-      })
-      .set(stack).finally(this);
+      }).set(stack).finally(this);
   });
 };
 
@@ -297,16 +294,14 @@ YAFF.prototype.parFilter = function (limit, fn) {
 };
 
 YAFF.prototype.map = function (fn, thisArg) {
-  thisArg = maybe(thisArg).getOrElse(fn);
   return this.seq(function () {
-    this.apply(this, [null].concat(this.args.map(fn, thisArg)));
+    this.apply(this, [null].concat(this.args.map(fn, maybe(thisArg).getOrElse(fn))));
   });
 };
 
 YAFF.prototype.filter = function (fn, thisArg) {
-  thisArg = maybe(thisArg).getOrElse(fn);
   return this.seq(function () {
-    this.apply(this, [null].concat(this.args.filter(fn, thisArg)));
+    this.apply(this, [null].concat(this.args.filter(fn, maybe(thisArg).getOrElse(fn))));
   });
 };
 
@@ -349,9 +344,8 @@ YAFF.prototype.empty = function () {
 };
 
 YAFF.prototype.push = function (/*args*/) {
-  var args = slice(arguments);
   return this.seq(function () {//TODO seq -> seq_
-    this.apply(this, [null].concat(this.args, args));
+    this.apply(this, [null].concat(this.args, slice(arguments)));
   });
 };
 
@@ -368,16 +362,14 @@ YAFF.prototype.shift = function () {
 };
 
 YAFF.prototype.unshift = function (/*args*/) {
-  var args = slice(arguments);
   return this.seq(function () {
-    this.apply(this, [null].concat(args, this.args));
+    this.apply(this, [null].concat(slice(arguments), this.args));
   });
 };
 
 YAFF.prototype.splice = function (index, howMany, toAppend) {
-  toAppend = maybe(toAppend).is(Array).getOrElse([toAppend]);
   return this.seq(function () {
-    Array.prototype.splice.apply(this.args, [index, howMany].concat(toAppend));
+    Array.prototype.splice.apply(this.args, [index, howMany].concat(maybe(toAppend).is(Array).getOrElse([toAppend])));
     this.apply(this, [null].concat(this.args));
   });
 };

@@ -3,7 +3,7 @@ var log  = console.log;
 var err  = console.error;
 var fs   = require('fs');
 var path = require('path');
-var maybe = require('./maybe');
+var maybe = require('maybe2');
 
 exports.Seq;
 exports.Test = function () {
