@@ -13,6 +13,7 @@ seq:
 
 docs:
 	$(NODE) $(JSDOX) --output docs ./
+	@cp ./docs/main.md README.md
 
 install:
 	@rm -rf $(MODULES)
