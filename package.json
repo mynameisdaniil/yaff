@@ -1,0 +1,19 @@
+{
+  "name": "YAFF",
+  "description": "Yet Another Flow Framework",
+  "version": "0.0.11",
+  "homepage": "https://github.com/mynameisdaniil/yaff",
+  "author": "Daniil Sobol",
+  "repository": "git@github.com:mynameisdaniil/yaff.git",
+  "main": "main.js",
+  "engines": {
+    "node": ">=0.10"
+  },
+  "dependencies": {
+    "maybe2": "0.1.4"
+  },
+  "devDependencies": {
+    "jsdox": "0.2.2",
+    "seq": "0.3.5"
+  }
+}
