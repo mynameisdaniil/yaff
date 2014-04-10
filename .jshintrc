@@ -15,7 +15,6 @@
     "undef": true,
     "browser": false,
     "node": true,
-    "es5": true,
     "indent": 2,
     "newcap": false,
     "strict": false,

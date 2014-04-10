@@ -8,7 +8,7 @@ YAFF is an asynchronous flow control library with a chainable interface for sequ
 
 
 Each method executes callbacks with a context (its ```this```) described in the next section. Every method returns ```this```.
-Whenever ```this()``` is called with a non-falsy first argument, the error value propagates down to the first ```catch``` or ```finally``` block it sees, skipping over all actions in between. There is an implicit catch at the end of all chains that just throws error away.
+Whenever ```this()``` is called with a non-falsy first argument, the error value propagates down to the ```finally``` block, skipping over all actions in between. There is an implicit ```finally``` at the end of all chains that just throws error away.
 .YAFF(initialStack=\[\])
 ------------------------
 The constructor function creates a new ```YAFF``` chain with the methods described below. The optional array argument becomes the new context stack.
@@ -39,20 +39,9 @@ Like with seq, the first argument to ```this()``` should be the error value and 
 
 **callback**:  *function*,  Function to be executed in parallel
 
-.catch(callback)
-----------------
-Catch errors. Whenever a function calls ```this``` with a non-falsy first argument, the message propagates down the chain to the first catch it sees. The ```callback``` fires with the error object as its first argument.
-```catch``` is a syncronous sequential action and further actions may appear after a catch in a chain. If the execution reaches a catch in a chain and no error has occured, the catch is skipped over.
-For convenience, there is a default error handler at the end of all chains. This default error just *throws* the error out.
-
-
-**Parameters**
-
-**callback**:  *function*,  Syncronous error handler
-
 .finally(callback)
 ------------------
-Finalizes the chain. Unlike ```catch``` it handles errors as well as results and fires provided callback in nodejs manner, so first argument becomes error (may be ```undefined``` if everything is ok) and the rest arguments are results (may be ```undefined``` too if there is an error). ```finally``` is a syncronous sequential action. You can only have one ```finally``` block per chain and it should be in the very end of the chain.
+Finalizes the chain. Handles errors as well as results and fires provided callback in nodejs manner, so first argument becomes error (may be ```undefined``` if everything is ok) and the rest arguments are results (may be ```undefined``` too if there is an error). ```finally``` is a syncronous sequential action. You can only have one ```finally``` block per chain and it should be in the very end of it.
 
 It's handly if you use it inside asyncronous functions like that:
 ```javascript

@@ -14,7 +14,6 @@ var slice = Array.prototype.slice.call.bind(Array.prototype.slice);
 
 const PAR = 'par';
 const SEQ = 'seq';
-const ERR = 'err';
 const FIN = 'fin';
 
 
@@ -22,7 +21,7 @@ const FIN = 'fin';
  * @module
  *
  * Each method executes callbacks with a context (its ```this```) described in the next section. Every method returns ```this```.
- * Whenever ```this()``` is called with a non-falsy first argument, the error value propagates down to the first ```catch``` or ```finally``` block it sees, skipping over all actions in between. There is an implicit catch at the end of all chains that just throws error away.
+ * Whenever ```this()``` is called with a non-falsy first argument, the error value propagates down to the ```finally``` block, skipping over all actions in between. There is an implicit ```finally``` at the end of all chains that just throws error away.
  */
 
 
@@ -68,10 +67,6 @@ YAFF.prototype.handlersMap[PAR] = function (self, currItem) {
       executor(currItem, self, true);
   }
   self.args = [];
-};
-
-YAFF.prototype.handlersMap[ERR] = function (self) {
-  self.conveyor(self.stack.shift()); //Err handler shouldn't be executed in order, so skip current step
 };
 
 YAFF.prototype.handlersMap[FIN] = function (self) {
@@ -121,20 +116,11 @@ var executor = function (currItem, self, merge) {
 };
 
 YAFF.prototype.errHandler = function (e) {
-  var currItem;
-  var defaultHandler = function (e) { throw e; };
-  /*jshint boss:true*/
-  while (currItem = this.stack[0])
-    if (currItem.type == ERR) {
-      return this.conveyor(currItem.fn(e));
-    } else {
-      this.stack.shift(this.args.shift());
-    }
-
+  this.stack = [];
   if (this.fin)
     this.finHandler(e);
   else
-    this.conveyor(defaultHandler(e));
+    throw e;
 };
 
 YAFF.prototype.finHandler = function (e) {
@@ -180,18 +166,7 @@ YAFF.prototype.par_ = function (fn) {
 };
 
 /**
- * Catch errors. Whenever a function calls ```this``` with a non-falsy first argument, the message propagates down the chain to the first catch it sees. The ```callback``` fires with the error object as its first argument.
-* ```catch``` is a syncronous sequential action and further actions may appear after a catch in a chain. If the execution reaches a catch in a chain and no error has occured, the catch is skipped over.
- * For convenience, there is a default error handler at the end of all chains. This default error just *throws* the error out.
- * @param {function} callback Syncronous error handler
- */
-YAFF.prototype.catch = function (fn) {
-  this.stack.push({fn: fn, type: ERR});
-  return this;
-};
-
-/**
- * Finalizes the chain. Unlike ```catch``` it handles errors as well as results and fires provided callback in nodejs manner, so first argument becomes error (may be ```undefined``` if everything is ok) and the rest arguments are results (may be ```undefined``` too if there is an error). ```finally``` is a syncronous sequential action. You can only have one ```finally``` block per chain and it should be in the very end of the chain.
+ * Finalizes the chain. Handles errors as well as results and fires provided callback in nodejs manner, so first argument becomes error (may be ```undefined``` if everything is ok) and the rest arguments are results (may be ```undefined``` too if there is an error). ```finally``` is a syncronous sequential action. You can only have one ```finally``` block per chain and it should be in the very end of it.
  *
  * It's handly if you use it inside asyncronous functions like that:
  * ```javascript
@@ -217,17 +192,16 @@ YAFF.prototype.limit = function (limit) {
 };
 
 YAFF.prototype.iterate = function (method, fn, limit) {
+  limit = maybe(limit).is(Number).getOrElse(Infinity);
   this.args.forEach(function (item, index, args) {
     method.call(this, function () { fn.call(this, item, index, args, this); }).limit(limit);
   }, this);
   return this;
 };
 
-YAFF.prototype.forEach = function (limit, fn) {
-  fn = maybe(fn).is(Function).getOrElse(limit);
-  limit = maybe(limit).is(Number).getOrElse(Infinity);
+YAFF.prototype.forEach = function (fn, limit) {
   return this.seq(function () {
-    YAFF(this.args).iterate(YAFF.prototype.par, fn, limit);
+    YAFF(this.args).iterate(YAFF.prototype.par, fn, limit).finally(this);//TODO pass errors to main chain
     this.apply(this, [null].concat(this.args));
   });
 };
@@ -238,9 +212,7 @@ YAFF.prototype.seqEach = function (fn) {
   });
 };
 
-YAFF.prototype.parEach = function (limit, fn) {
-  fn = maybe(fn).is(Function).getOrElse(limit);
-  limit = maybe(limit).is(Number).getOrElse(Infinity);
+YAFF.prototype.parEach = function (fn, limit) {
   return this.seq(function () {
     YAFF(this.args).iterate(YAFF.prototype.par, fn, limit).set(this.args).finally(this);
   });
@@ -257,9 +229,7 @@ YAFF.prototype.seqMap = function (fn) {
   });
 };
 
-YAFF.prototype.parMap = function (limit, fn) {
-  fn = maybe(fn).is(Function).getOrElse(limit);
-  limit = maybe(limit).is(Number).getOrElse(Infinity);
+YAFF.prototype.parMap = function (fn, limit) {
   return this.seq(function () {
     YAFF(this.args).iterate(YAFF.prototype.par, fn, limit).finally(this);
   });
@@ -278,9 +248,7 @@ YAFF.prototype.seqFilter = function (fn) {
   });
 };
 
-YAFF.prototype.parFilter = function (limit, fn) {
-  fn = maybe(fn).is(Function).getOrElse(limit);
-  limit = maybe(limit).is(Number).getOrElse(Infinity);
+YAFF.prototype.parFilter = function (fn, limit) {
   return this.seq(function () {
     var stack = [];
     YAFF(this.args).parEach(limit, function (item, index, args, cb) {

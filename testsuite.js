@@ -136,12 +136,13 @@ exports.Test = function () {
   // });
 
   this.Seq(['one', 'two', 'three'])
-    .forEach(function (item, index) {
-      log(item, ': ', index);
-      this();
+    .parEach(function (item, index) {
+      // log(item, ': ', index);
+      this(null, item);
     })
-    .finally(function (e, res) {
-      log('e: ' + e,  '\tres: ' + res);
+    .unflatten()
+    .finally(function () {
+      log(arguments);
     });
   
   // this.Seq([1, 2, 3])
