@@ -135,14 +135,24 @@ exports.Test = function () {
   //   setImmediate(eventLoopTracker);
   // });
 
-  this.Seq(['one', 'two', 'three'])
-    .parEach(function (item, index) {
-      // log(item, ': ', index);
-      this(null, item);
+  var fs = require('fs');
+  this.Seq(['./', '../'])
+    .par(function (path) {
+      fs.readdir(path, this);
+    })
+    .par(function (path) {
+      fs.readdir(path, this);
+    })
+    .flatten()
+    .parMap(function (file) {
+      fs.stat(__dirname + '/' + file, this);
+    })
+    .map(function (stat) {
+      return stat.size;
     })
     .unflatten()
-    .finally(function () {
-      log(arguments);
+    .finally(function (e, sizes) {
+      log(sizes);
     });
   
   // this.Seq([1, 2, 3])
