@@ -9,11 +9,8 @@ Example:
 
 ```javascript
 var fs = require('fs');
-YAFF(['./', '../'])
-  .par(function (path) {
-    fs.readdir(path, this);
-  })
-  .par(function (path) {
+YAFF(['./'])
+  .seq(function (path) {
     fs.readdir(path, this);
   })
   .flatten()
