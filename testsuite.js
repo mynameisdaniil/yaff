@@ -136,12 +136,9 @@ exports.Test = function () {
   // });
 
   var fs = require('fs');
-  this.Seq(['./', '../'])
-    .par(function (path) {
-      fs.readdir(path, this);
-    })
-    .par(function (path) {
-      fs.readdir(path, this);
+  this.Seq(['./'])
+    .seq(function (path1) {
+      fs.readdir(path1, this);
     })
     .flatten()
     .parMap(function (file) {
