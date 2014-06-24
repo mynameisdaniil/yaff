@@ -259,7 +259,7 @@ YAFF.prototype.parMap = function (fn, limit) {
 YAFF.prototype.seqFilter = function (fn) {
   return this.seq(function () {
     var stack = [];
-    YAFF(this.args).seqEach(function (item, index, args, cb) {
+    YAFF(this.args).iterate(YAFF.prototype.seq, function (item, index, args, cb) {
         fn.call(function (e, ret) {
           if (ret && !e)
             stack.push(item);
@@ -272,13 +272,13 @@ YAFF.prototype.seqFilter = function (fn) {
 YAFF.prototype.parFilter = function (fn, limit) {
   return this.seq(function () {
     var stack = [];
-    YAFF(this.args).parEach(limit, function (item, index, args, cb) {
+    YAFF(this.args).iterate(YAFF.prototype.par, function (item, index, args, cb) {
         fn.call(function (e, ret) {
           if (ret && !e)
             stack.push(item);
           cb();
         }, item, index, args);
-      }).set(stack).finally(this);
+      }, limit).set(stack).finally(this);
   });
 };
 
