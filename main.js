@@ -369,6 +369,12 @@ YAFF.prototype.reverse = function () {
   });
 };
 
+YAFF.prototype.dummy = function () {
+  return this.seq(function () {
+    this.apply(this, [null].concat(this.args));
+  });
+};
+
 YAFF.prototype.debug = function (fn) {
   var self = this;
   var defaultDebug = function () {
