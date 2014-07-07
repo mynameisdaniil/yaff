@@ -7,25 +7,27 @@ YAFF (Yet Another Flow Framework)
 YAFF is an asynchronous flow control library with a chainable interface for sequential and parallel actions. Even the error handling is chainable. Each action in the chain operates on a stack of values. Unlike Seq YAFF doesn't have variables hash and operates on plain old arguments stack only, if you need to modify something please use map/filter methods.
 Example:
 
+```javascript
 var fs = require('fs');
 YAFF(['./', '../'])
-.par(function (path) {
-fs.readdir(path, this);
-})
-.par(function (path) {
-fs.readdir(path, this);
-})
-.flatten()
-.parMap(function (file) {
-fs.stat(__dirname + '/' + file, this);
-})
-.map(function (stat) {
-return stat.size;
-})
-.unflatten()
-.finally(function (e, sizes) {
-log(sizes);
-});
+  .par(function (path) {
+    fs.readdir(path, this);
+  })
+  .par(function (path) {
+    fs.readdir(path, this);
+  })
+  .flatten()
+  .parMap(function (file) {
+    fs.stat(__dirname + '/' + file, this);
+  })
+  .map(function (stat) {
+    return stat.size;
+  })
+  .unflatten()
+  .finally(function (e, sizes) {
+    log(sizes);
+  });
+```
 
 
 Each method executes callbacks with a context (its ```this```) described in the next section. Every method returns ```this```.
@@ -68,10 +70,10 @@ It's handly if you use it inside asyncronous functions like that:
 ```javascript
 var myAsyncFunction = funtion(callback) {
 YAFF()
-.par(...)
-.par(...)
-.seq(...)
-.finally(callback)
+  .par(...)
+  .par(...)
+  .seq(...)
+  .finally(callback)
 }
 ```
 
