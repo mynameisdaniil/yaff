@@ -372,14 +372,14 @@ YAFF.prototype.reverse = function () {
 
 YAFF.prototype.save = function (name) {
   return this.seq(function () {
-    this.hash[name] = this.args;
+    this.hash[name || '_'] = this.args;
     this.apply(this, [null].concat(this.args));
   });
 };
 
 YAFF.prototype.load = function (name) {
   return this.seq(function () {
-    this.apply(this, [null].concat(this.hash[name]));
+    this.apply(this, [null].concat(this.hash[name || '_']));
   });
 };
 
