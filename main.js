@@ -61,6 +61,7 @@ var YAFF = module.exports = function YAFF(initialStack) {
   this.lastError;
   this.concurrencyLevel = 0;
   this.args = maybe(initialStack).is(Array).getOrElse([]);
+  this.hash = {};
   process.nextTick(function waitForStack() {
     if (self.stack.length)
       self.conveyor();
@@ -366,6 +367,19 @@ YAFF.prototype.splice = function (index, howMany, toAppend) {
 YAFF.prototype.reverse = function () {
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.reverse()));
+  });
+};
+
+YAFF.prototype.save = function (name) {
+  return this.seq(function () {
+    this.hash[name] = this.args;
+    this.apply(this, [null].concat(this.args));
+  });
+};
+
+YAFF.prototype.load = function (name) {
+  return this.seq(function () {
+    this.apply(this, [null].concat(this.hash[name]));
   });
 };
 
