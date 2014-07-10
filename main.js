@@ -131,6 +131,7 @@ var executor = function (currItem, self, merge) {
   };
   process.nextTick((function (cb, args) {
     cb.args = args;
+    cb.hash = self.hash;
     return function () {
       currItem.fn.apply(cb, args);
     };
