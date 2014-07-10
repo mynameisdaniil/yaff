@@ -286,13 +286,13 @@ YAFF.prototype.parFilter = function (fn, limit) {
 
 YAFF.prototype.map = function (fn, thisArg) {
   return this.seq(function () {
-    this.apply(this, [null].concat(this.args.map(fn, maybe(thisArg).getOrElse(fn))));
+    this.apply(this, [null].concat(this.args.map(fn, maybe(thisArg).getOrElse(this))));
   });
 };
 
 YAFF.prototype.filter = function (fn, thisArg) {
   return this.seq(function () {
-    this.apply(this, [null].concat(this.args.filter(fn, maybe(thisArg).getOrElse(fn))));
+    this.apply(this, [null].concat(this.args.filter(fn, maybe(thisArg).getOrElse(this))));
   });
 };
 
