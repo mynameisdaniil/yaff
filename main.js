@@ -61,6 +61,7 @@ var YAFF = module.exports = function YAFF(initialStack) {
   this.lastError;
   this.concurrencyLevel = 0;
   this.args = maybe(initialStack).is(Array).getOrElse([]);
+  this.hash = {};
   process.nextTick(function waitForStack() {
     if (self.stack.length)
       self.conveyor();
@@ -130,6 +131,7 @@ var executor = function (currItem, self, merge) {
   };
   process.nextTick((function (cb, args) {
     cb.args = args;
+    cb.hash = self.hash;
     return function () {
       currItem.fn.apply(cb, args);
     };
@@ -284,13 +286,13 @@ YAFF.prototype.parFilter = function (fn, limit) {
 
 YAFF.prototype.map = function (fn, thisArg) {
   return this.seq(function () {
-    this.apply(this, [null].concat(this.args.map(fn, maybe(thisArg).getOrElse(fn))));
+    this.apply(this, [null].concat(this.args.map(fn, maybe(thisArg).getOrElse(this))));
   });
 };
 
 YAFF.prototype.filter = function (fn, thisArg) {
   return this.seq(function () {
-    this.apply(this, [null].concat(this.args.filter(fn, maybe(thisArg).getOrElse(fn))));
+    this.apply(this, [null].concat(this.args.filter(fn, maybe(thisArg).getOrElse(this))));
   });
 };
 
@@ -366,6 +368,19 @@ YAFF.prototype.splice = function (index, howMany, toAppend) {
 YAFF.prototype.reverse = function () {
   return this.seq(function () {
     this.apply(this, [null].concat(this.args.reverse()));
+  });
+};
+
+YAFF.prototype.save = function (name) {
+  return this.seq(function () {
+    this.hash[name || '_'] = this.args;
+    this.apply(this, [null].concat(this.args));
+  });
+};
+
+YAFF.prototype.load = function (name) {
+  return this.seq(function () {
+    this.apply(this, [null].concat(this.hash[name || '_']));
   });
 };
 

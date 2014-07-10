@@ -1,7 +1,7 @@
 {
   "name": "yaff",
   "description": "Yet Another Flow Framework",
-  "version": "0.0.20",
+  "version": "0.0.24",
   "homepage": "https://github.com/mynameisdaniil/yaff",
   "author": "Daniil Sobol",
   "repository": "git@github.com:mynameisdaniil/yaff.git",
