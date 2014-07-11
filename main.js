@@ -169,6 +169,13 @@ YAFF.prototype.seq_ = function (fn) {
   return this.seq(function () { fn.apply(fn, (args.length ? args:this.args).concat(this)); });
 };
 
+YAFF.prototype.mseq = function (arr) {
+  var fn;
+  while (fn = arr.pop()) //jshint ignore:line
+    this.seq(fn);
+  return this;
+};
+
 /**
  * Use par to execute actions in parallel. Chain multiple parallel actions together and collect all the responses on the stack with a sequential operation like seq.
  * Each par sets one element in the stack with the second argument to ```this()``` in the order in which it appears, so multiple pars can be chained together.
@@ -186,6 +193,13 @@ YAFF.prototype.par = function (fn) {
 YAFF.prototype.par_ = function (fn) {
   var args = slice(arguments, 1);
   return this.par(function () { fn.apply(fn, (args.length ? args:this.args).concat(this)); });
+};
+
+YAFF.prototype.mpar = function (arr) {
+  var fn;
+  while (fn = arr.pop()) //jshint ignore:line
+    this.par(fn);
+  return this;
 };
 
 /**

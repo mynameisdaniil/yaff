@@ -9,9 +9,9 @@ exports.Seq;
 exports.Test = function () {
   var fs = require('fs');
   this.Seq(['./'])
-    .seq(function (path1) {
+    .mseq([function (path1) {
       fs.readdir(path1, this);
-    })
+    }])
     .dummy()
     .flatten()
     .parMap(function (file) {
