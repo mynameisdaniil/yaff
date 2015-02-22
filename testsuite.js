@@ -12,7 +12,6 @@ exports.Test = function () {
     .mseq([function (path1) {
       fs.readdir(path1, this);
     }])
-    .dummy()
     .flatten()
     .parMap(function (file) {
       fs.stat(__dirname + '/' + file, this);

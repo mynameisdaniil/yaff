@@ -404,6 +404,12 @@ YAFF.prototype.dummy = function () {
   });
 };
 
+YAFF.prototype.apply = function (fn) {
+  return this.seq(function () {
+    this.apply(this, [null].concat(fn.apply(fn, this.args)));
+  });
+};
+
 YAFF.prototype.debug = function (fn) {
   var self = this;
   var defaultDebug = function () {
