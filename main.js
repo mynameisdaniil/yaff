@@ -27,8 +27,6 @@
     });
  **/
 
-/*global maybe:true*/
-var maybe = require('maybe2');
 var ins   = require('util').inspect;
 var log   = console.log;
 var slice = Array.prototype.slice.call.bind(Array.prototype.slice);
@@ -60,7 +58,7 @@ var YAFF = module.exports = function YAFF(initialStack) {
   this.fin;
   this.lastError;
   this.concurrencyLevel = 0;
-  this.args = maybe(initialStack).is(Array).getOrElse([]);
+  this.args = initialStack instanceof Array ? initialStack:[];
   this.hash = {};
   process.nextTick(function waitForStack() {
     if (self.stack.length)
@@ -147,7 +145,7 @@ YAFF.prototype.errHandler = function (e) {
 };
 
 YAFF.prototype.finHandler = function (e) {
-  e = maybe(e).getOrElse(this.lastError);
+  e = e || this.lastError;
   this.fin.apply(this.fin, [].concat(e, e ? undefined:this.args));
 };
 
@@ -229,7 +227,7 @@ YAFF.prototype.limit = function (limit) {
 };
 
 YAFF.prototype.iterate = function (method, fn, limit) {
-  limit = maybe(limit).is(Number).getOrElse(Infinity);
+  limit = typeof limit == 'number' ? limit:Infinity;
   this.args.forEach(function (item, index, args) {
     method.call(this, function () { fn.call(this, item, index, args, this); }).limit(limit);
   }, this);
@@ -300,13 +298,13 @@ YAFF.prototype.parFilter = function (fn, limit) {
 
 YAFF.prototype.map = function (fn, thisArg) {
   return this.seq(function () {
-    this.apply(this, [null].concat(this.args.map(fn, maybe(thisArg).getOrElse(this))));
+    this.apply(this, [null].concat(this.args.map(fn, thisArg || this)));
   });
 };
 
 YAFF.prototype.filter = function (fn, thisArg) {
   return this.seq(function () {
-    this.apply(this, [null].concat(this.args.filter(fn, maybe(thisArg).getOrElse(this))));
+    this.apply(this, [null].concat(this.args.filter(fn, thisArg || this)));
   });
 };
 
@@ -374,7 +372,7 @@ YAFF.prototype.unshift = function (/*args*/) {
 
 YAFF.prototype.splice = function (index, howMany, toAppend) {
   return this.seq(function () {
-    Array.prototype.splice.apply(this.args, [index, howMany].concat(maybe(toAppend).is(Array).getOrElse([toAppend])));
+    Array.prototype.splice.apply(this.args, [index, howMany].concat(toAppend instanceof Array ? toAppend:[toAppend]));
     this.apply(this, [null].concat(this.args));
   });
 };
@@ -414,12 +412,12 @@ YAFF.prototype.debug = function (fn) {
   var self = this;
   var defaultDebug = function () {
     this.apply(this, [null].concat(this.args));
-    log('̲........................................');
+    log('........................................');
     log('->FUN STACK:');
     log(ins(self.stack));
     log('->ARG STACK:');
     log(ins(self.args));
     log('........................................');
   };
-  return this.seq(maybe(fn).getOrElse(defaultDebug));
+  return this.seq(fn || defaultDebug);
 };

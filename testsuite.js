@@ -5,22 +5,21 @@ var fs   = require('fs');
 var path = require('path');
 var maybe = require('maybe2');
 
+
 exports.Seq;
 exports.Test = function () {
   var fs = require('fs');
-  this.Seq(['./'])
-    .mseq([function (path1) {
-      fs.readdir(path1, this);
-    }])
-    .flatten()
-    .parMap(function (file) {
-      fs.stat(__dirname + '/' + file, this);
+  this.Seq([1,2,3,4,5,6,7])
+    .parEach(function (num) {
+      if (num % 2 == 0)
+        return this('ha-ha!');
+      this(null, num);
     })
-    .map(function (stat) {
-      return stat.size;
+    .seq(function () {
+      log('regual seq', arguments);
+      this();
     })
-    .unflatten()
-    .finally(function (e, sizes) {
-      log(sizes);
-    });
+    .finally(function (e, res) {
+      log('finally:', arguments);
+    })
 };
