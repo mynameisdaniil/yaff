@@ -107,7 +107,14 @@ var executor = function (currItem, self, merge) {
   self.lastError = undefined;
   var cb = function (e) {
     self.concurrencyLevel--;
+    if ((e || self.lastError) && !self.concurrencyLevel && currItem.type == 'par')
+      return self.errHandler([[self.lastError].concat(e)]);
     if (e) {
+      if (self.concurrencyLevel) {
+        if (!self.lastError)
+          self.lastError = [];
+        return self.lastError.push(e);
+      }
       if (!self.lastError)
         self.lastError = e;
       return self.errHandler(e);
