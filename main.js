@@ -153,7 +153,7 @@ YAFF.prototype.errHandler = function (e) {
 
 YAFF.prototype.finHandler = function (e) {
   e = e || this.lastError;
-  this.fin.apply(this.fin, [].concat(e, e ? undefined:this.args));
+  this.fin.apply(this.fin, [].concat([e], e ? undefined:this.args));
 };
 
 
