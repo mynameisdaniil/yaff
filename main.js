@@ -108,7 +108,7 @@ var executor = function (currItem, self, merge) {
   var cb = function (e) {
     self.concurrencyLevel--;
     if ((e || self.lastError) && !self.concurrencyLevel && currItem.type == 'par')
-      return self.errHandler([[self.lastError].concat(e)]);
+      return self.errHandler([[].concat(self.lastError, e)]);
     if (e) {
       if (self.concurrencyLevel) {
         if (!self.lastError)
@@ -117,7 +117,7 @@ var executor = function (currItem, self, merge) {
       }
       if (!self.lastError)
         self.lastError = e;
-      return self.errHandler(e);
+      return self.errHandler([e]);
     } else {
       var ret = slice(arguments, 1);
       if (merge)
