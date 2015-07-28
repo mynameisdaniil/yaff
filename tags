@@ -28,7 +28,6 @@ load	/home/daniil/projects/my/yaff/main.js	/^YAFF.prototype.load = function (nam
 log	/home/daniil/projects/my/yaff/main.js	/^var log   = console.log;$/;"	v	language:JavaScript
 log	/home/daniil/projects/my/yaff/testsuite.js	/^var log  = console.log;$/;"	v	language:JavaScript
 map	/home/daniil/projects/my/yaff/main.js	/^YAFF.prototype.map = function (fn, thisArg) {$/;"	m	language:JavaScript	class:YAFF
-maybe	/home/daniil/projects/my/yaff/testsuite.js	/^var maybe = require('maybe2');$/;"	v	language:JavaScript
 MODULES	/home/daniil/projects/my/yaff/Makefile	/^MODULES = .\/node_modules\/$/;"	m	language:Make
 mpar	/home/daniil/projects/my/yaff/main.js	/^YAFF.prototype.mpar = function (arr) {$/;"	m	language:JavaScript	class:YAFF
 mseq	/home/daniil/projects/my/yaff/main.js	/^YAFF.prototype.mseq = function (arr) {$/;"	m	language:JavaScript	class:YAFF
